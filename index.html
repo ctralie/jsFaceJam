@@ -1,0 +1,27 @@
+<html>
+<head>
+    <script src="libs/face-api.js"></script>
+    <script src="libs/face-api.min.js"></script>
+</head>
+<body>
+
+<img src = "profs.png" id="profs">
+
+<script>
+    async function getFaces() {
+        await faceapi.loadSsdMobilenetv1Model('./libs/models/');
+
+        const input = document.getElementById('profs');
+
+        const detections = faceapi.detectAllFaces(input).withFaceLandmarks();
+        console.log(detections);
+        /*detections.forEach(function(item, index) {
+            console.log(item);
+        });*/
+    }
+    getFaces();
+
+</script>
+
+</body>
+</html>
