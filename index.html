@@ -9,13 +9,25 @@
 
 <script>
     async function getFaces() {
-        await faceapi.loadSsdMobilenetv1Model('./libs/models/');
+		const MODEL_URL = './libs/models/';
+		
+        await faceapi.loadSsdMobilenetv1Model(MODEL_URL);
+		await faceapi.loadFaceLandmarkModel(MODEL_URL)
 
         const input = document.getElementById('profs');
 
-        const detections = faceapi.detectAllFaces(input).withFaceLandmarks();
+		let fullFaceDescriptions = await faceapi.detectAllFaces(input).withFaceLandmarks();
+		
+		fullFaceDescriptions = faceapi.resizeResults(fullFaceDescriptions); //If image display size is different, resize the box
+		
+		faceapi.draw.drawDetections(canvas, fullFaceDescriptions);
+		
+		faceapi.draw.drawLandmarks(canvas, fullFaceDescriptions);
+		
+        /*const detections = faceapi.detectAllFaces(input).withFaceLandmarks();
         console.log(detections);
-        /*detections.forEach(function(item, index) {
+		
+        detections.forEach(function(item, index) {
             console.log(item);
         });*/
     }
