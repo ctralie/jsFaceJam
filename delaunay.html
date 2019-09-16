@@ -1,0 +1,16 @@
+<html>
+<head>
+	<script src="https://unpkg.com/delaunator@4.0.1/delaunator.min.js"></script>
+</head>
+<body>
+
+<script>
+	const points = [[168, 180], [168, 178], [168, 179], [168, 181], [168, 183]];
+
+	const delaunay = Delaunator.from(points);
+	console.log(delaunay.triangles);
+</script>
+
+
+</body>
+</html>
