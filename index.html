@@ -5,9 +5,37 @@
 </head>
 <body>
 
-<img src = "profs.png" id="profs">
+    <canvas id = "mycanvas" width = "800" height = "800" style="border:1px solid #000000;">
+    </canvas>
+
+    <BR><BR><BR>
+    <img src = "profs.png" id="profs">
+
+
 
 <script>
+	let canvas = document.getElementById('mycanvas');
+	let ctx = canvas.getContext("2d"); //For drawing
+	//Need this to disable that annoying menu that pops up on right click
+	canvas.addEventListener("contextmenu", function(e){ e.stopPropagation(); e.preventDefault(); return false; }); 
+    let img = document.getElementById("profs");
+    let points = [];
+
+    repaint();
+
+    function repaint() {
+		const dW = 5;
+		const W = canvas.width;
+		const H = canvas.height;
+		ctx.clearRect(0, 0, W, H); // Puts white over everything to clear it
+        ctx.drawImage(img, 0, 0);
+
+		ctx.fillStyle = [0, 0, 0];
+		points.forEach(function(p) {
+			ctx.fillRect(p.x-dW, p.y-dW, dW*2+1, dW*2+1);
+		});
+    }
+
     async function getFaces() {
 		const MODEL_URL = './libs/models/';
 		
@@ -17,19 +45,8 @@
         const input = document.getElementById('profs');
 
 		let fullFaceDescriptions = await faceapi.detectAllFaces(input).withFaceLandmarks();
-		
-		fullFaceDescriptions = faceapi.resizeResults(fullFaceDescriptions); //If image display size is different, resize the box
-		
-		faceapi.draw.drawDetections(canvas, fullFaceDescriptions);
-		
-		faceapi.draw.drawLandmarks(canvas, fullFaceDescriptions);
-		
-        /*const detections = faceapi.detectAllFaces(input).withFaceLandmarks();
-        console.log(detections);
-		
-        detections.forEach(function(item, index) {
-            console.log(item);
-        });*/
+        points = fullFaceDescriptions[0].landmarks.positions;
+        repaint();
     }
     getFaces();
 
