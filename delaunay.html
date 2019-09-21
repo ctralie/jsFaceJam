@@ -52,6 +52,8 @@
 
 	}
 
+	function next_halfedge(e) { return (e % 3 == 2) ? e-2 : e+1; }
+
 	function selectPoint(evt) {
 		let mousePos = getMousePos(canvas, evt);
 		const X = mousePos.X;
@@ -75,6 +77,29 @@
 		}
 		delaunay = Delaunator.from(points);
 		console.log(delaunay.triangles);
+
+		/*for (let e = 0; e < delaunay.triangles.length; e++) {
+			if (e > delaunay.halfedges[e]) {
+				const p = points[delaunay.triangles[e]];
+				const q = points[delaunay.triangles[next_halfedge(e)]];
+				callback(e, p, q);
+			}
+   		}*/
+
+		for (let halfedge_id = 0; halfedge_id < delaunay.triangles.length; halfedge_id++) {
+    		if (halfedge_id < delaunay.halfedges[halfedge_id]) {
+        		let p = points[halfedge_id];
+        		let q = points[next_halfedge(halfedge_id)];
+        	
+				// draw edge p to q
+				
+				ctx.beginPath();
+				ctx.moveTo(p[0],p[1]);
+				ctx.lineTo(q[0],q[1]);
+				ctx.stroke();
+   		 	}
+		}
+
 		repaint();
 	}
 
