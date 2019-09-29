@@ -2,6 +2,7 @@
 <head>
     <script src="libs/face-api.js"></script>
     <script src="libs/face-api.min.js"></script>
+    <script src="https://unpkg.com/delaunator@4.0.1/delaunator.min.js"></script>
 </head>
 <body>
 
@@ -9,7 +10,7 @@
     </canvas>
 
     <BR><BR><BR>
-    <img src = "Cristiano.jpg" id="profs">
+    <img src = "hannibal.jpg" id="person">
 
 
 
@@ -18,8 +19,9 @@
 	let ctx = canvas.getContext("2d"); //For drawing
 	//Need this to disable that annoying menu that pops up on right click
 	canvas.addEventListener("contextmenu", function(e){ e.stopPropagation(); e.preventDefault(); return false; }); 
-    let img = document.getElementById("profs");
+    let img = document.getElementById("person");
     let points = [];
+    let delaunay = null;
 
     repaint();
 
@@ -34,7 +36,23 @@
 		points.forEach(function(p) {
 			ctx.fillRect(p.x-dW, p.y-dW, dW*2+1, dW*2+1);
 		});
+
+        if (!(delaunay === null)) {
+            let tris = delaunay.triangles;
+            for (let i = 0; i < tris.length; i += 3) {
+                for (let k = 0; k < 3; k++) {
+                    let p = points[tris[i+k]];
+                    let q = points[tris[i+(k+1)%3]];
+                    ctx.beginPath();
+                    ctx.moveTo(p[0],p[1]);
+                    ctx.lineTo(q[0],q[1]);
+                    ctx.stroke();
+                }
+            }
+        }
     }
+
+    function next_halfedge(e) { return (e % 3 == 2) ? e-2 : e+1; }
 
     async function getFaces() {
 		const MODEL_URL = './libs/models/';
@@ -42,10 +60,19 @@
         await faceapi.loadSsdMobilenetv1Model(MODEL_URL);
 		await faceapi.loadFaceLandmarkModel(MODEL_URL)
 
-        const input = document.getElementById('profs');
+        const input = document.getElementById('person');
 
 		let fullFaceDescriptions = await faceapi.detectAllFaces(input).withFaceLandmarks();
-        points = fullFaceDescriptions[0].landmarks.positions;
+        console.log(fullFaceDescriptions[0].landmarks.positions);
+        for (i=0; fullFaceDescriptions[0].landmarks.positions.length; i++) {
+            let X = fullFaceDescriptions[0].landmarks.positions[i].get_x();
+            let Y = fullFaceDescriptions[0].landmarks.positions[i].get_y();
+            points.push([X, Y]);
+        }
+        //points = fullFaceDescriptions[0].landmarks.positions;
+        delaunay = Delaunator.from(points);
+        console.log(points);
+        console.log(delaunay.triangles);
         repaint();
     }
     getFaces();
