@@ -64,13 +64,13 @@
 
 		let fullFaceDescriptions = await faceapi.detectAllFaces(input).withFaceLandmarks();
 
-        /*console.log(fullFaceDescriptions[0].landmarks.positions);
-        for (i=0; fullFaceDescriptions[0].landmarks.positions.length; i++) {
-            let X = fullFaceDescriptions[0].landmarks.positions[i].get_x();
-            let Y = fullFaceDescriptions[0].landmarks.positions[i].get_y();
+        console.log(fullFaceDescriptions[0].landmarks.positions);
+        for (i=0; i < fullFaceDescriptions[0].landmarks.positions.length; i++) {
+            X = fullFaceDescriptions[0].landmarks.positions[i].x;
+            Y = fullFaceDescriptions[0].landmarks.positions[i].y;
             points.push([X, Y]);
-        }*/
-        points = fullFaceDescriptions[0].landmarks.positions;
+        }
+        //points = fullFaceDescriptions[0].landmarks.positions;
         delaunay = Delaunator.from(points);
         console.log(points);
         console.log(delaunay.triangles);
