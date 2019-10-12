@@ -1,13 +1,12 @@
 /**
  * Create a texture object from an image
  * 
+ * @param {WebGL Handle} gl WebGL handle
  * @param {HTML image} image An image which has already been loaded
  * 
- * @returns{object} {texture:texture object, 
- *                   width: width of texture, 
- *                   height:height of texture}
+ * @returns{object} texture object
  */
-function loadTexture(image) {
+function loadTexture(gl, image) {
     const texture = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, texture);
 
@@ -33,5 +32,5 @@ function loadTexture(image) {
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
     }
-    return {texture:texture, width:width, height:height};
+    return texture;
 }

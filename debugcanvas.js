@@ -17,7 +17,7 @@ function DebugCanvas() {
 		const dW = 5;
         let ctx = this.ctx;
 		ctx.clearRect(0, 0, W, H); // Puts white over everything to clear it
-        ctx.drawImage(img, 0, 0);
+        ctx.drawImage(this.img, 0, 0);
 
 		ctx.fillStyle = [0, 0, 0];
 		points.forEach(function(p) {

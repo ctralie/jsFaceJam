@@ -1,10 +1,10 @@
-async function getFaces(input) {
+async function getFaces(img) {
     const MODEL_URL = './libs/models/';
     
     await faceapi.loadSsdMobilenetv1Model(MODEL_URL);
     await faceapi.loadFaceLandmarkModel(MODEL_URL);
 
-    let fullFaceDescriptions = await faceapi.detectAllFaces(input).withFaceLandmarks();
+    let fullFaceDescriptions = await faceapi.detectAllFaces(img).withFaceLandmarks();
 
     points.length = 0;
     for (i=0; i < fullFaceDescriptions[0].landmarks.positions.length; i++) {

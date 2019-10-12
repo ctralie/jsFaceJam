@@ -5,16 +5,16 @@ function isPowerOf2(value) {
 /**
  * Canavs for OpenGL Face Rendering
  */
-function FaceCanvas() {
-    let canvas = document.getElementById('FaceCanvas');
-    this.canvas = canvas;
-    this.textureShader = null;
-    this.texture = null;
+function FaceCanvas(canvas) {
+    canvas.textureShader = null;
+    canvas.texture = null;
+    canvas.lastTime = (new Date()).getTime();
+    canvas.time = 0;
 
     /**
      * Given a list of pixel locations on an image, transform them into texture coordinates
      */
-    this.getTextureCoordinates = function(points, W, H) {
+    canvas.getTextureCoordinates = function(points, W, H) {
         let texPoints = [];
         // TODO: Fill in texture transformation
         let fac = Math.max(W, H);
@@ -28,7 +28,7 @@ function FaceCanvas() {
      * Given a list of pixel locations on an image, transform them into
      * vertex coordinates to be displayed on the viewing square [-1, 1] x [-1, 1]
      */
-    this.getVertexCoordinates = function(points, W, H) {
+    canvas.getVertexCoordinates = function(points, W, H) {
         let vertPoints = []
         let fac = Math.max(W, H);
         for (let i = 0; i < points.length; i++) {
@@ -48,8 +48,8 @@ function FaceCanvas() {
      * @param {int} W Number of pixels across the width
      * @param {int} H Number of pixels across the height
      */
-    this.setupShader = function(points, tris, W, H) {
-        let gl = this.canvas.gl;
+    canvas.setupShader = function(points, tris, W, H) {
+        let gl = canvas.gl;
         let textureShader = getShaderProgram(gl, "texture");
         textureShader.uSampler = gl.getUniformLocation(textureShader, 'uSampler');
         textureShader.uTimeUniform = gl.getUniformLocation(textureShader, "uTime");
@@ -61,7 +61,7 @@ function FaceCanvas() {
         gl.vertexAttribPointer(textureShader.positionLocation, 2, gl.FLOAT, false, 0, 0);
     
         // Step 2: Setup index buffer and send over all triangles, which don't change
-        const indexBuffer = gl.createBuffetextureCoords = new Float32Array(textureCoords);r();
+        const indexBuffer = gl.createBuffer();
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
         gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(tris), gl.STATIC_DRAW); // Copy over fixed triangles
         indexBuffer.itemSize = 1;
@@ -76,58 +76,65 @@ function FaceCanvas() {
         gl.vertexAttribPointer(textureShader.textureLocation, 2, gl.FLOAT, false, 0, 0);
 
         // Step 4: Compute and copy over 
-        let textureCoords = this.getTextureCoordinates(points, W, H);
+        let textureCoords = canvas.getTextureCoordinates(points, W, H);
         textureCoords = new Float32Array(textureCoords); // Recast as 32 bit float array for GPU
         gl.bindBuffer(gl.ARRAY_BUFFER, textureCoordBuffer);
         gl.bufferData(gl.ARRAY_BUFFER, textureCoords, gl.STATIC_DRAW);
 
         // Save away texture shader
-        this.textureShader = textureShader;
+        canvas.textureShader = textureShader;
     }
 
-    this.updateTexture = function(texture) {
-        this.texture = texture;
+    canvas.updateTexture = function(texture) {
+        canvas.texture = texture;
     }
 
-    this.updateVertexBuffer = function(points, W, H) {
+    canvas.updateVertexBuffer = function(points, W, H) {
         // TODO: Copy over points to another array where they've
         // been transformed appropriately
-        let vertPoints = this.getVertexCoordinates(points, W, H);
+        let vertPoints = canvas.getVertexCoordinates(points, W, H);
         vertPoints = new Float32Array(vertPoints);
-        let positionBuffer = this.textureShader.positionBuffer;
+        let positionBuffer = canvas.textureShader.positionBuffer;
+        let gl = canvas.gl;
         gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
         gl.bufferData(gl.ARRAY_BUFFER, vertPoints, gl.STATIC_DRAW);
     }
 
 
-    this.repaint = function() {
-        if (this.textureShader === null || this.texture == null) {
+    canvas.repaint = function() {
+        if (canvas.textureShader === null){
+            console.log("Texture shader has not been initialized");
             return;
         }
-        let canvas = this.canvas;
+        if (canvas.texture == null) {
+            console.log("Texture has not been initialized");
+            return;
+        }
         let gl = canvas.gl;
-        let textureShader = this.textureShader;
+        let textureShader = canvas.textureShader;
         canvas.gl.useProgram(textureShader);
 
         // Bind vertex and index buffers to draw two triangles
         gl.bindBuffer(gl.ARRAY_BUFFER, textureShader.positionBuffer);
         gl.vertexAttribPointer(textureShader.positionLocation, 2, gl.FLOAT, false, 0, 0);
-        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
-        gl.drawElements(gl.TRIANGLES, indexBuffer.numItems, gl.UNSIGNED_SHORT, 0);
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, textureShader.indexBuffer);
+        gl.drawElements(gl.TRIANGLES, textureShader.indexBuffer.numItems, gl.UNSIGNED_SHORT, 0);
 
         // Set the time
         thisTime = (new Date()).getTime();
-        time += (thisTime - lastTime)/1000.0;
-        lastTime = thisTime;
-        gl.uniform1f(uTimeUniform, time);
+        canvas.time += (thisTime - canvas.lastTime)/1000.0;
+        canvas.lastTime = thisTime;
+        gl.uniform1f(textureShader.uTimeUniform, canvas.time);
 
         // Set active texture
         gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, this.texture);
-        gl.uniform1i(uSampler, 0);
+        gl.bindTexture(gl.TEXTURE_2D, canvas.texture);
+        gl.uniform1i(textureShader.uSampler, 0);
 
         // Keep the animation loop going
-        requestAnimationFrame(render);
+        if (canvas.active) {
+            requestAnimationFrame(canvas.repaint);
+        }
     }
 
     // Initialize WebGL
@@ -138,6 +145,5 @@ function FaceCanvas() {
     } catch (e) {
         console.log(e);
     }
-
 }
 
