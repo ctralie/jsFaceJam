@@ -76,7 +76,7 @@
         let delaunay = Delaunator.from(points);
         tris = delaunay.triangles;
         faceCanvas.setupShader(points, tris, W, H);
-        faceCanvas.updateVertexBuffer(points, W, H);
+        faceCanvas.animating = false;
         requestAnimationFrame(activeCanvas.repaint.bind(activeCanvas));
     }
 
@@ -91,6 +91,7 @@
         document.getElementById("imgdiv").style.display = "none";
         requestAnimationFrame(activeCanvas.repaint.bind(activeCanvas));
         getFaces(image); // Initialize facial landmarks*/
+        updateDelaunay();
     }
 
 

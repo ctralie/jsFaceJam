@@ -34,3 +34,4 @@ function loadTexture(gl, image) {
     }
     return texture;
 }
+

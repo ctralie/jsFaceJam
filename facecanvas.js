@@ -10,6 +10,7 @@ function FaceCanvas(canvas) {
     canvas.texture = null;
     canvas.lastTime = (new Date()).getTime();
     canvas.time = 0;
+    canvas.animating = false;
 
     /**
      * Given a list of pixel locations on an image, transform them into texture coordinates
@@ -17,10 +18,6 @@ function FaceCanvas(canvas) {
     canvas.getTextureCoordinates = function(points, W, H) {
         let texPoints = [];
         // TODO: Fill in texture transformation
-        let fac = Math.max(W, H);
-        for (let i = 0; i < points.length; i++) {
-            texPoints.push([points[i][0]/fac, points[i][1]/fac]);
-        }
         return texPoints;
     }
 
@@ -29,19 +26,15 @@ function FaceCanvas(canvas) {
      * vertex coordinates to be displayed on the viewing square [-1, 1] x [-1, 1]
      */
     canvas.getVertexCoordinates = function(points, W, H) {
-        let vertPoints = []
-        let fac = Math.max(W, H);
-        for (let i = 0; i < points.length; i++) {
-            let x = 2*points[i][0]/fac-1;
-            let y = 1-2*points[i][1]/fac;
-            vertPoints.push([x, y]);
-        }
+        let vertPoints = [];
+        // TODO: Fill in texture transformation
         return vertPoints;
     }
 
+
     /**
-     * This function sets up and compiles the shader
-     * Also copy over all buffers that don't change
+     * This function sets up and compiles the shader, and it allocates
+     * memory for the vertex buffer, index buffer, and triangles buffer
      * 
      * @param {2d array} points An array of points, each of which is a list [x, y]
      * @param {2d array} tris An array of triangles, each of which is an index array [i, j, k]
@@ -51,37 +44,42 @@ function FaceCanvas(canvas) {
     canvas.setupShader = function(points, tris, W, H) {
         let gl = canvas.gl;
         let textureShader = getShaderProgram(gl, "texture");
+        let positionLocation = gl.getAttribLocation(textureShader, "a_position");
+        let textureLocation = gl.getAttribLocation(textureShader, "a_texture");
+        gl.enableVertexAttribArray(positionLocation);
+        gl.enableVertexAttribArray(textureLocation);
         textureShader.uSampler = gl.getUniformLocation(textureShader, 'uSampler');
         textureShader.uTimeUniform = gl.getUniformLocation(textureShader, "uTime");
-        
-        // Step 1: Setup vertex position buffer
-        textureShader.positionBuffer = gl.createBuffer();
-        textureShader.positionLocation = gl.getAttribLocation(textureShader, "a_position");
-        gl.enableVertexAttribArray(textureShader.positionLocation);
-        gl.vertexAttribPointer(textureShader.positionLocation, 2, gl.FLOAT, false, 0, 0);
-    
-        // Step 2: Setup index buffer and send over all triangles, which don't change
-        const indexBuffer = gl.createBuffer();
-        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
-        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(tris), gl.STATIC_DRAW); // Copy over fixed triangles
-        indexBuffer.itemSize = 1;
-        indexBuffer.numItems = 6;
-        textureShader.indexBuffer = indexBuffer;
 
-        
-        // Step 3: Setup texture coordinate buffer
-        textureShader.textureLocation = gl.getAttribLocation(textureShader, "a_texture");
-        gl.enableVertexAttribArray(textureShader.textureLocation);
+        // Setup positions for the vertex buffer
+        const positionBuffer = gl.createBuffer();
+        let vertPoints = new Float32Array(this.getVertexCoordinates(points, W, H));
+        textureShader.points = points;
+        textureShader.W = W;
+        textureShader.H = H;
+        gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, vertPoints, gl.STATIC_DRAW);
+        gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
+        textureShader.positionBuffer = positionBuffer;
+        textureShader.positionLoction = positionLocation;
+
+        // Setup positions for the texture coordinate buffer
         const textureCoordBuffer = gl.createBuffer();
-        gl.vertexAttribPointer(textureShader.textureLocation, 2, gl.FLOAT, false, 0, 0);
-
-        // Step 4: Compute and copy over 
         let textureCoords = canvas.getTextureCoordinates(points, W, H);
-        textureCoords = new Float32Array(textureCoords); // Recast as 32 bit float array for GPU
+        textureCoords = new Float32Array(textureCoords);
         gl.bindBuffer(gl.ARRAY_BUFFER, textureCoordBuffer);
         gl.bufferData(gl.ARRAY_BUFFER, textureCoords, gl.STATIC_DRAW);
+        gl.vertexAttribPointer(textureLocation, 2, gl.FLOAT, false, 0, 0);
+        textureShader.textureCoordBuffer = textureCoordBuffer;
+        textureShader.textureLocation = textureLocation;
 
-        // Save away texture shader
+        // Setup triangles
+        const indexBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
+        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(tris), gl.STATIC_DRAW);
+        indexBuffer.itemSize = 1;
+        indexBuffer.numItems = tris.length;
+        textureShader.indexBuffer = indexBuffer;
         canvas.textureShader = textureShader;
     }
 
@@ -89,14 +87,18 @@ function FaceCanvas(canvas) {
         canvas.texture = texture;
     }
 
+    /**
+     * Update the vertex buffer with a new set of points
+     * @param {2d array} points An array of points, each of which is a list [x, y]
+     * @param {int} W Number of pixels across the width
+     * @param {int} H Number of pixels across the height
+     */
     canvas.updateVertexBuffer = function(points, W, H) {
-        // TODO: Copy over points to another array where they've
-        // been transformed appropriately
+        let gl = canvas.gl;
+        let textureShader = canvas.textureShader;
         let vertPoints = canvas.getVertexCoordinates(points, W, H);
         vertPoints = new Float32Array(vertPoints);
-        let positionBuffer = canvas.textureShader.positionBuffer;
-        let gl = canvas.gl;
-        gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+        gl.bindBuffer(gl.ARRAY_BUFFER, textureShader.positionBuffer);
         gl.bufferData(gl.ARRAY_BUFFER, vertPoints, gl.STATIC_DRAW);
     }
 
@@ -114,9 +116,7 @@ function FaceCanvas(canvas) {
         let textureShader = canvas.textureShader;
         canvas.gl.useProgram(textureShader);
 
-        // Bind vertex and index buffers to draw two triangles
-        gl.bindBuffer(gl.ARRAY_BUFFER, textureShader.positionBuffer);
-        gl.vertexAttribPointer(textureShader.positionLocation, 2, gl.FLOAT, false, 0, 0);
+        // Bind vertex, texture and index buffers to draw two triangles
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, textureShader.indexBuffer);
         gl.drawElements(gl.TRIANGLES, textureShader.indexBuffer.numItems, gl.UNSIGNED_SHORT, 0);
 
@@ -132,7 +132,16 @@ function FaceCanvas(canvas) {
         gl.uniform1i(textureShader.uSampler, 0);
 
         // Keep the animation loop going
-        if (canvas.active) {
+        if (canvas.active && canvas.animating) {
+            let points = [];
+            for (let i = 0; i < textureShader.points.length; i++) {
+                let p = [];
+                for (let k = 0; k < 2; k++) {
+                    p.push(textureShader.points[i][k] + 4*(Math.random()-0.5));
+                }
+                points.push(p);
+            }
+            canvas.updateVertexBuffer(points, textureShader.W, textureShader.H);
             requestAnimationFrame(canvas.repaint);
         }
     }
