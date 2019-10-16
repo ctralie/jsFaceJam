@@ -17,7 +17,18 @@ function FaceCanvas(canvas) {
      */
     canvas.getTextureCoordinates = function(points, W, H) {
         let texPoints = [];
-        // TODO: Fill in texture transformation
+        let divisor = 0;
+        if (W > H) {
+            divisor = W;
+        } else {
+            divisor = H;
+        }
+
+        for (i = 0; i < points.length; i++) {
+            texPoints[i*2] = points[i][0]/divisor;
+            texPoints[(i*2)+1] = points[i][1]/divisor;
+        }
+
         return texPoints;
     }
 
@@ -27,7 +38,18 @@ function FaceCanvas(canvas) {
      */
     canvas.getVertexCoordinates = function(points, W, H) {
         let vertPoints = [];
-        // TODO: Fill in texture transformation
+        let divisor = 0;
+        if (W > H) {
+            divisor = W;
+        } else {
+            divisor = H;
+        }     
+        
+        for (i = 0; i < points.length; i=i+2) {
+            vertPoints[i*2] = 2*points[i]/(divisor-1);
+            vertPoints[(i*2)+1] = 1 - (2*points[i+1]/divisor);
+        }
+
         return vertPoints;
     }
 

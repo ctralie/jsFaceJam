@@ -76,7 +76,7 @@
         let delaunay = Delaunator.from(points);
         tris = delaunay.triangles;
         faceCanvas.setupShader(points, tris, W, H);
-        faceCanvas.animating = false;
+        faceCanvas.animating = true;
         requestAnimationFrame(activeCanvas.repaint.bind(activeCanvas));
     }
 
