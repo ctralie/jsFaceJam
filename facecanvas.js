@@ -45,9 +45,9 @@ function FaceCanvas(canvas) {
             divisor = H;
         }     
         
-        for (i = 0; i < points.length; i=i+2) {
-            vertPoints[i*2] = 2*points[i]/(divisor-1);
-            vertPoints[(i*2)+1] = 1 - (2*points[i+1]/divisor);
+        for (i = 0; i < points.length; i++) {
+            vertPoints[i*2] = 2*points[i][0]/divisor - 1;
+            vertPoints[(i*2)+1] = 1 - (2*points[i][1]/divisor);
         }
 
         return vertPoints;
