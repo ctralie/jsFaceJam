@@ -34,7 +34,6 @@
     // Points, tris, width, and height are global variables for now
     // since they're shared between canvases
     let points = [];
-    let tris = [];
     let W = 1;
     let H = 1;
 
@@ -73,9 +72,7 @@
     // Code to initialize delaunay triangulation, which is called
     // when facial landmarks have been initialized
     function updateDelaunay(img) {
-        let delaunay = Delaunator.from(points);
-        tris = delaunay.triangles;
-        faceCanvas.setupShader(points, tris, W, H);
+        faceCanvas.setupShader(points, W, H);
         faceCanvas.animating = true;
         requestAnimationFrame(activeCanvas.repaint.bind(activeCanvas));
     }

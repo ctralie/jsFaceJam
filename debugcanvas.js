@@ -19,11 +19,6 @@ function DebugCanvas() {
 		ctx.clearRect(0, 0, W, H); // Puts white over everything to clear it
         ctx.drawImage(this.img, 0, 0);
 
-		ctx.fillStyle = [0, 0, 0];
-		points.forEach(function(p) {
-			ctx.fillRect(p.x-dW, p.y-dW, dW*2+1, dW*2+1);
-		});
-
         for (let i = 0; i < tris.length; i += 3) {
             for (let k = 0; k < 3; k++) {
                 let p = points[tris[i+k]];
