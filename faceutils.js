@@ -35,6 +35,6 @@ async function getFaces(img) {
     minX = minX - img.width*pad;
     maxY = maxY + img.height*pad;
     minY = minY - img.height*pad;
-    points.push([minX,minY],[maxX,maxY],[minX,maxY],[maxX,minY],[0,0],[0,img.height],[img.width,0],[img.width,img.height]);
-    updateDelaunay();
+    points.push([minX,minY],[maxX,minY],[minX,maxY],[maxX,maxY],[0,0],[img.width,0],[0,img.height],[img.width,img.height]);
+    updateDelaunay(img);
 }

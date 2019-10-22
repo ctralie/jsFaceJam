@@ -158,8 +158,14 @@ function FaceCanvas(canvas) {
             let points = [];
             for (let i = 0; i < textureShader.points.length; i++) {
                 let p = [];
-                for (let k = 0; k < 2; k++) {
-                    p.push(textureShader.points[i][k] + 4*(Math.random()-0.5));
+                if (16 < i && i < 27) {
+                    for (let k = 0; k < 2; k++) {
+                        p.push(textureShader.points[i][k] + 4*(Math.random()-0.5));
+                    }
+                } else {
+                    for (let k = 0; k < 2; k++) {
+                        p.push(textureShader.points[i][k]);
+                    }
                 }
                 points.push(p);
             }

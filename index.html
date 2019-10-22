@@ -72,7 +72,7 @@
 
     // Code to initialize delaunay triangulation, which is called
     // when facial landmarks have been initialized
-    function updateDelaunay() {
+    function updateDelaunay(img) {
         let delaunay = Delaunator.from(points);
         tris = delaunay.triangles;
         faceCanvas.setupShader(points, tris, W, H);

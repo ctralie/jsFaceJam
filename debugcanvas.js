@@ -32,6 +32,10 @@ function DebugCanvas() {
                 ctx.moveTo(p[0],p[1]);
                 ctx.lineTo(q[0],q[1]);
                 ctx.stroke();
+
+                ctx.font = "10px Arial";
+                ctx.fillStyle = "white";
+                ctx.fillText(tris[i+k], points[tris[i+k]][0], points[tris[i+k]][1]);
             }
         }
     }
