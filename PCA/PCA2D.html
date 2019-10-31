@@ -1,0 +1,115 @@
+<!--Programmer: Chris Tralie!-->
+<!--Purpose: Front end point chooser for 2D PCA !-->
+<html>
+<head>
+<script src = "numeric-1.2.6.min.js"></script>
+<script src = "PCA.js"></script>
+<body>
+
+<h2>2D PCA</h2>
+
+
+<canvas id = "segcanvas" width = "600" height = "600" style="border:1px solid #000000;">
+
+<script>
+var canvas = document.getElementById('segcanvas');
+var ctx = canvas.getContext("2d"); //For drawing
+//Need this to disable that annoying menu that pops up on right click
+canvas.addEventListener("contextmenu", function(e){ e.stopPropagation(); e.preventDefault(); return false; }); 
+
+colors = ["#ff0000", "#00ff00", "#0000ff"];
+
+var Ps = []; //Points
+
+function printMat(M) {
+    for (var i = 0; i < M.length; i++) {
+        s = "";
+        for (var j = 0; j < M[i].length; j++) {
+            s += M[i][j].toFixed(3) + " ";
+        }
+        console.log(s);
+    }
+}
+
+function repaint() {
+    var dW = 5;
+    var dWSel = 10;
+    var W = canvas.width;
+    var H = canvas.height;
+    ctx.clearRect(0, 0, W, H);
+    
+    //Draw points
+    ctx.fillStyle = "#000000";
+    for (var i = 0; i < Ps.length; i++) {
+        ctx.fillRect(Ps[i][0]-dW, Ps[i][1]-dW, dW*2+1, dW*2+1);
+    }
+    
+    //Do PCA if there are at least 3 points
+    if (Ps.length < 3) {
+        return;
+    }
+    var res = doPCA(Ps);
+    //Draw mean
+    ctx.fillStyle = "#ff0000";
+    ctx.fillRect(res.mean[0]-dW, res.mean[1]-dW, dW*2+1, dW*2+1);
+    
+    //Draw principal axes
+    ctx.strokeStyle = "#0000ff";
+    ctx.beginPath();
+    ctx.moveTo(res.mean[0], res.mean[1]);
+    ctx.lineTo(res.mean[0] + res.lambda[0]*res.E[0][0], res.mean[1] + res.lambda[0]*res.E[1][0]);
+    ctx.stroke();
+    
+    ctx.strokeStyle = "#005500";
+    ctx.beginPath();
+    ctx.moveTo(res.mean[0], res.mean[1]);
+    ctx.lineTo(res.mean[0] + res.lambda[1]*res.E[0][1], res.mean[1] + res.lambda[1]*res.E[1][1]);
+    ctx.stroke();
+}
+
+function getMousePos(canvas, evt) {
+	var rect = canvas.getBoundingClientRect();
+	return {
+	    X: evt.clientX - rect.left,
+	    Y: evt.clientY - rect.top
+	};
+}
+
+function selectPoint(evt) {
+    var mousePos = getMousePos(canvas, evt);
+    var X = mousePos.X;
+    var Y = mousePos.Y;
+    var clickType = "LEFT";
+    evt.preventDefault();
+    if (evt.which) {
+        if (evt.which == 3) clickType = "RIGHT";
+        if (evt.which == 2) clickType = "MIDDLE";
+    }
+    else if (evt.button) {
+        if (evt.button == 2) clickType = "RIGHT";
+        if (evt.button == 4) clickType = "MIDDLE";
+    }
+    
+    if (clickType == "LEFT") {
+        //Add a point
+        Ps.push([X, Y]);
+    }
+    else {
+        //Remove point
+        if (Ps.length > 0) {
+            Ps.pop();
+        }
+    }
+    repaint();
+}
+
+canvas.addEventListener("mousedown", selectPoint);
+canvas.addEventListener("touchstart", selectPoint);
+repaint();
+
+
+</script>
+
+
+</body>
+</html>
