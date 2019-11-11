@@ -1,3 +1,21 @@
+function loadJSON(filename, errTxt) {
+    try {
+        let request = new XMLHttpRequest();
+        request.open("GET", filename, false);
+        request.overrideMimeType("application/json");
+        request.send(null);
+        return JSON.parse(request.responseText);
+    }
+    catch(err) {
+        if (errTxt === undefined) {
+            errTxt = "";
+        }
+        alert("Error loading JSON file " + filename + ". " + errTxt);
+        throw err;
+    }
+}
+
+
 function isPowerOf2(value) {
     return (value & (value - 1)) == 0;
 }
@@ -164,11 +182,41 @@ function FaceCanvas(canvas) {
         gl.bindTexture(gl.TEXTURE_2D, canvas.texture);
         gl.uniform1i(textureShader.uSampler, 0);
 
+        // Load the expressions
+        let expressions = loadJSON("ExpressionsModel.json","ERROR");
+        console.log(expressions);
+        //Loop through the expressions
+
+
+
         // Keep the animation loop going
         if (canvas.active && canvas.animating) {
             let points = [];
+            let column = [];
+
+            let theta = 0;
+            let epsilon = Math.sin(theta);
+
+            for (i = 0; i < 2; i++) { //Change this loop to loop through all dimensions (d)
+                column.push(expressions.PC[d][k]); //dth dimension of column k
+            }
+
+            points += expressions.center + expressions.sv[k]*epsilon*column;
+
+            //Change theta and call requestAnimFrame(repaint) until theta reaches 2*pi
+
+            //Add bounding box points?
+
+
+
+            // Move eyebrows up and down
+                /*
             for (let i = 0; i < textureShader.points.length; i++) {
                 let p = [];
+
+                
+
+                
                 if (16 < i && i < 27) {
                     for (let k = 0; k < 2; k++) {
                         if (k == 0) {
@@ -182,9 +230,9 @@ function FaceCanvas(canvas) {
                     for (let k = 0; k < 2; k++) {
                         p.push(textureShader.points[i][k]);
                     }
-                }
+                } 
                 points.push(p);
-            }
+            }*/
             canvas.updateVertexBuffer(points, textureShader.W, textureShader.H);
             requestAnimationFrame(canvas.repaint);
         }
