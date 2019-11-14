@@ -191,11 +191,19 @@ function FaceCanvas(canvas) {
 
         // Keep the animation loop going
         if (canvas.active && canvas.animating) {
-            let points = [];
+            // TODO (Later, for expression transfer): Store first frame of Parker's face,
+            // then do point location, and map through Barycentric coordinates to the new
+            // neutral face
+
+            let pointsi = []; // TODO: Fill in a new array of points each time, and copy over
+            // the original bounding box points
             let column = [];
 
             let theta = 0;
             let epsilon = Math.sin(theta);
+
+            //TODO: Use numeric.js to do the matrix multiplication and addition of the center
+            //Unravel the array into a 2D array
 
             for (i = 0; i < 2; i++) { //Change this loop to loop through all dimensions (d)
                 column.push(expressions.PC[d][k]); //dth dimension of column k
@@ -233,6 +241,7 @@ function FaceCanvas(canvas) {
                 } 
                 points.push(p);
             }*/
+            // TODO: Increment theta here
             canvas.updateVertexBuffer(points, textureShader.W, textureShader.H);
             requestAnimationFrame(canvas.repaint);
         }
