@@ -10,7 +10,7 @@ function DebugCanvas() {
     this.ctx = ctx;
     this.img = null;
 
-    this.repaint = function() {
+    this.repaint = function(points) {
         if (this.img === null) {
             return;
         }
