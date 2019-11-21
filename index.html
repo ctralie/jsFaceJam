@@ -2,7 +2,7 @@
 <head>
     <script src="libs/face-api.js"></script>
     <script src="libs/face-api.min.js"></script>
-    <script src="libs/numeric.js"></script>
+    <script src="PCA/numeric-1.2.6.min.js"></script>
     <script src="https://unpkg.com/delaunator@4.0.1/delaunator.min.js"></script>
     <script src="shaders.js"></script>
     <script src="texture.js"></script>
@@ -77,6 +77,7 @@
     function updateDelaunay(img) {
         faceCanvas.setupShader(points, W, H);
         faceCanvas.animating = true;
+        debugCanvas.setPoints(points);
         requestAnimationFrame(activeCanvas.repaint.bind(activeCanvas));
     }
 
@@ -89,6 +90,7 @@
         faceCanvas.updateTexture(texture);
         debugCanvas.img = image;
         document.getElementById("imgdiv").style.display = "none";
+        debugCanvas.setPoints(points);
         requestAnimationFrame(activeCanvas.repaint.bind(activeCanvas));
         getFaces(image); // Initialize facial landmarks*/
         updateDelaunay();

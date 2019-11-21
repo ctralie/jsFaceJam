@@ -12,6 +12,7 @@ import matplotlib.pyplot as plt
 import matplotlib.image as mpimage
 import os
 import imageio
+import json
 import subprocess
 
 def getProcrustesAlignment(X, Y, idx):
@@ -49,7 +50,7 @@ def getProcrustesAlignment(X, Y, idx):
     return (Cx, Cy, R)    
 
 
-def getFaceModel(n_components=10, doPlot = False):
+def getFaceModel(n_components=10, stabilize = False, doPlot = False):
     """
     Do Procrustes alignment on all of the frames to align them
     to the first frame, and do PCA down to some number
@@ -57,21 +58,24 @@ def getFaceModel(n_components=10, doPlot = False):
     ----------
     n_components: int
         Number of principal components to compute
+    stabilize: boolean
+        Whether to apply rigid Procrustes stabilization
     """
     allkeypts = sio.loadmat("frames/allkeypts.mat")["X"]
     print(allkeypts.shape)
     allkeypts = allkeypts[:, 0:-8, :] # Discard the bounding boxes
-    Y = allkeypts[0, :, :].T
     
     ## Step 1: Do procrustes to align all frames to first frame
-    for i in range(1, allkeypts.shape[0]):
-        X = allkeypts[i, :, :].T
-        Cx, Cy, R = getProcrustesAlignment(X[:, 0:-4], Y[:, 0:-4], np.arange(X.shape[1]-4))
-        XNew = X - Cx
-        XNew = R.dot(XNew)
-        XNew += Cy
-        XNew[:, -4::] = Y[:, -4::]
-        allkeypts[i, :, :] = XNew.T
+    if stabilize:
+        Y = allkeypts[0, :, :].T
+        for i in range(1, allkeypts.shape[0]):
+            X = allkeypts[i, :, :].T
+            Cx, Cy, R = getProcrustesAlignment(X[:, 0:-4], Y[:, 0:-4], np.arange(X.shape[1]-4))
+            XNew = X - Cx
+            XNew = R.dot(XNew)
+            XNew += Cy
+            XNew[:, -4::] = Y[:, -4::]
+            allkeypts[i, :, :] = XNew.T
     
     ## Step 2: Now do PCA on the keypoints
     X = np.reshape(allkeypts, (allkeypts.shape[0], allkeypts.shape[1]*allkeypts.shape[2]))
@@ -82,13 +86,13 @@ def getFaceModel(n_components=10, doPlot = False):
     P = pca.components_.T
     sv = np.sqrt(pca.singular_values_)
     
-    return {'XC':XC.flatten(), "P":P, "sv":sv, "allkeypts":allkeypts}
+    return {'center':XC.flatten(), "PCs":P, "sv":sv, "allkeypts":allkeypts}
 
 def plotPCs(res, N):
     """
     Plot principal components as scatterplots
     """
-    XC, P, sv, allkeypts = res["XC"], res["P"], res["sv"], res["allkeypts"]
+    XC, P, sv, allkeypts = res["center"], res["PCs"], res["sv"], res["allkeypts"]
     k = int(np.ceil(np.sqrt(N+1)))
     plt.figure(figsize=(20, 20))
     plt.subplot(k, k, 1)
@@ -107,7 +111,7 @@ def makeEllipse(res, k1 = 0, k2 = 1):
     """
     Trace out an ellipse in the space of principal components
     """
-    XC, P, sv = res["XC"], res["P"], res["sv"]
+    XC, P, sv = res["center"], res["PCs"], res["sv"]
     NEllipse = 100
     t = np.linspace(0, 2*np.pi, NEllipse+1)[0:NEllipse]
     Y = np.zeros((P.shape[0], NEllipse))
@@ -134,13 +138,15 @@ def makeEllipse(res, k1 = 0, k2 = 1):
         plt.ylim([ymin, ymax])
         plt.axis('off')
         plt.savefig("Ellipse%i.png"%i, bbox_inches='tight')
-    
-
-
 
 if __name__ == '__main__':
     res = getFaceModel()
-    #np.savetxt("center.txt", res['XC'].flatten(), fmt='%.3g', delimiter=',')
-    #np.savetxt("sv.txt", res['sv'], fmt='%.3g', delimiter=',')
     #plotPCs(res, 10)
-    makeEllipse(res, 3, 4)
+    #makeEllipse(res, 3, 4)
+    res.pop('allkeypts')
+
+    fout = open("ExpressionsModel.json", "w")
+    for key in res:
+        res[key] = res[key].tolist()
+    fout.write(json.dumps(res))
+    fout.close()

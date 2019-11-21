@@ -9,8 +9,13 @@ function DebugCanvas() {
     this.canvas = canvas;
     this.ctx = ctx;
     this.img = null;
+    this.points = [];
 
-    this.repaint = function(points) {
+    this.setPoints = function(points) {
+        this.points = points;
+    }
+
+    this.repaint = function() {
         if (this.img === null) {
             return;
         }
@@ -18,11 +23,10 @@ function DebugCanvas() {
         let ctx = this.ctx;
 		ctx.clearRect(0, 0, W, H); // Puts white over everything to clear it
         ctx.drawImage(this.img, 0, 0);
-
         for (let i = 0; i < tris.length; i += 3) {
             for (let k = 0; k < 3; k++) {
-                let p = points[tris[i+k]];
-                let q = points[tris[i+(k+1)%3]];
+                let p = this.points[tris[i+k]];
+                let q = this.points[tris[i+(k+1)%3]];
                 ctx.beginPath();
                 ctx.moveTo(p[0],p[1]);
                 ctx.lineTo(q[0],q[1]);
@@ -30,7 +34,7 @@ function DebugCanvas() {
 
                 ctx.font = "10px Arial";
                 ctx.fillStyle = "white";
-                ctx.fillText(tris[i+k], points[tris[i+k]][0], points[tris[i+k]][1]);
+                ctx.fillText(tris[i+k], this.points[tris[i+k]][0], this.points[tris[i+k]][1]);
             }
         }
     }
