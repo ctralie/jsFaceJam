@@ -208,14 +208,6 @@ function FaceCanvas(canvas, debugcanvas) {
             //TODO: Use numeric.js to do the matrix multiplication and addition of the center
             //Unravel the array into a 2D array
 
-            points1D = numeric.add(numeric.dot(expressions.PCs,epsilon),expressions.center);
-
-
-            //Unravel into 2D array
-            for (let i = 0; i < points1D.length; i += 2) {
-                points2D.push([points1D[i],points1D[i+1]]);
-            }
-
              //Add the boudning box points to the new array
              for (let i = 68; i < 76; i++) {
                  points2D.push(textureShader.points[i]);
@@ -254,8 +246,36 @@ function FaceCanvas(canvas, debugcanvas) {
         }
     }
 
-    canvas.updateBarycentric = function() {
-        
+    /**
+     * In the below: X refers to model, Y refers to new face image that's been inputted
+     * Given that we have N landmarks, given the expression model expressions,
+     * and given a set of coordinates "epsilon" to apply to the model
+     * 1) Apply the coordinates to the model (coords = center + PCs*epsilon)
+     * 2) Unravel the coordinates into XModelNew (N x 2).  Now we have 2D coordinates 
+     *      for the *model face* in a new expression determined by epsilon
+     * 3) Come up with barycentric coordinates alpha_i and triangle index T_i 
+     *      for every x_i in XModelNew
+     * 4) Given Y (N x 2), the coordinates of the new face landmarks.  For each
+     *      y_i in Y, apply alpha_i to triangle T_i, using the appropriate coordinates
+     *      Y as the vertices of triangle T_i
+     *      In particular, if alpha_i = (scalar a, scalar b, scalar c), 
+     *      and T_i = (vector y_a, vector y_b, vector y_c)
+     *      final re-positioning of y_i = a*y_a + b*y_b + c*y_c
+     */
+    canvas.updateBarycentric = function(epsilon) {
+        // Step 1:
+        let points1D = numeric.add(numeric.dot(expressions.PCs,epsilon),expressions.center);
+        // Step 2: Unravel into 2D array
+        let XModelNew = [];
+        for (let i = 0; i < points1D.length; i += 2) {
+            XModelNew.push([points1D[i],points1D[i+1]]);
+        }
+        // Step 3: TODO
+
+        // Step 4: TODO
+
+        // Return Y
+
     }
 
     // Initialize WebGL
