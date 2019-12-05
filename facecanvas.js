@@ -155,6 +155,9 @@ function FaceCanvas(canvas, debugcanvas) {
 
 
     canvas.repaint = function() {
+
+        canvas.updateBarycentric();
+
         if (canvas.textureShader === null){
             console.log("Texture shader has not been initialized");
             return;
@@ -249,6 +252,10 @@ function FaceCanvas(canvas, debugcanvas) {
             canvas.updateVertexBuffer(points2D, textureShader.W, textureShader.H);
             requestAnimationFrame(canvas.repaint);
         }
+    }
+
+    canvas.updateBarycentric = function() {
+        
     }
 
     // Initialize WebGL
