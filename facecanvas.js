@@ -103,11 +103,13 @@ class FaceCanvas {
                 // Setup positions for the vertex buffer
                 const positionBuffer = gl.createBuffer();
                 shader.positionBuffer = positionBuffer;
+                gl.bindBuffer(gl.ARRAY_BUFFER, shader.positionBuffer);
                 gl.vertexAttribPointer(shader.positionLocation, 2, gl.FLOAT, false, 0, 0);
 
                 // Setup positions for the texture coordinate buffer
                 const textureCoordBuffer = gl.createBuffer();
                 shader.textureCoordBuffer = textureCoordBuffer;
+                gl.bindBuffer(gl.ARRAY_BUFFER, shader.textureCoordBuffer);
                 gl.vertexAttribPointer(shader.textureLocation, 2, gl.FLOAT, false, 0, 0);
 
                 // Setup triangles
@@ -145,6 +147,7 @@ class FaceCanvas {
         }
         else {
             const gl = this.gl;
+            console.log(points);
             let vertPoints = getVertexCoordinates(points, W, H);
             vertPoints = new Float32Array(vertPoints);
             gl.bindBuffer(gl.ARRAY_BUFFER, this.shader.positionBuffer);
@@ -242,7 +245,7 @@ class FaceCanvas {
                 points.push(p);
             }
             this.theta += 0.1;
-            this.updateVertexBuffer(this.W, this.H, points);
+            this.updateVertexBuffer(points, this.W, this.H);
             //this.debugcanvas.updatePoints(points);
             //this.debugcanvas.repaint();
             requestAnimationFrame(this.repaint.bind(this));
