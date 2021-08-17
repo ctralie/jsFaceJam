@@ -1,34 +1,6 @@
-
-
-/**
- * Load in string from a text file.
- * This function is blocking.
- * @param {string} filename Path to file
- * @param {string} errTxt Error text
- * 
- * @return {string} String from text file
- */
-function loadTxt(filename, errTxt) {
-    try {
-        var request = new XMLHttpRequest();
-        request.open("GET", filename, false);
-        request.overrideMimeType("text/plain");
-        request.send(null);
-        return request.responseText;
-    }
-    catch(err) {
-        if (errTxt === undefined) {
-            errTxt = "";
-        }
-        alert("Error loading text file " + filename + ". " + errTxt);
-        throw err;
-    }
-};
-
-
 /**
  * A function that compiles a particular shader
- * @param {*} gl WebGL handle
+ * @param {object} gl WebGL handle
  * @param {string} shadersrc A string holding the GLSL source code for the shader
  * @param {string} type The type of shader ("fragment" or "vertex") 
  * 
@@ -61,29 +33,44 @@ function getShader(gl, shadersrc, type) {
 
 
 /**
+ * Compile a vertex shader and a fragment shader and link them together
  * 
- * @param {*} gl WebGL Handle
- * @param {string} prefix File prefix for shader.  It is expected that there
- * will be both a vertex shader named prefix.vert and a fragment
- * shader named prefix.frag
- * 
- * @returns{shaderprogram} An object holding the shaders linked together
- * and compiled/linked into a program
+ * @param {object} gl WebGL Handle
+ * @param {string} prefix Prefix for naming the shader
+ * @param {string} vertexSrc A string holding the GLSL source code for the vertex shader
+ * @param {string} fragmentSrc A string holding the GLSL source code for the fragment shader
  */
-function getShaderProgram(gl, prefix) {
-    let vertexSrc = loadTxt(prefix + ".vert");
-    let fragmentSrc = loadTxt(prefix + ".frag");
+function getShaderProgram(gl, prefix, vertexSrc, fragmentSrc) {
     let vertexShader = getShader(gl, vertexSrc, "vertex");
     let fragmentShader = getShader(gl, fragmentSrc, "fragment");
-
     let shader = gl.createProgram();
     gl.attachShader(shader, vertexShader);
     gl.attachShader(shader, fragmentShader);
     gl.linkProgram(shader);
     if (!gl.getProgramParameter(shader, gl.LINK_STATUS)) {
-        alert("Could not initialize shader" + prefix);
+        throw new Error("Could not initialize shader" + prefix);
     }
     shader.name = prefix;
     return shader;
 }
 
+/**
+ * Load in and compile a vertex/fragment shader pair asynchronously
+ * 
+ * @param {object} gl WebGL Handle
+ * @param {string} prefix File prefix for shader.  It is expected that there
+ * will be both a vertex shader named prefix.vert and a fragment
+ * shader named prefix.frag
+ * 
+ * @returns{Promise} A promise that resolves to a shader program, where the 
+ * vertex/fragment shaders are compiled/linked together
+ */
+function getShaderProgramAsync(gl, prefix) {
+    return new Promise((resolve, reject) => {
+        $.get(prefix + ".vert", function(vertexSrc) {
+            $.get(prefix + ".frag", function(fragmentSrc) {
+                resolve(getShaderProgram(gl, prefix, vertexSrc, fragmentSrc));
+            });
+        });
+    });
+}
