@@ -55,10 +55,10 @@
         activeCanvas = faceCanvas;
         debugbutton.className = "";
         debugCanvas.canvas.style.display = "none";
-        debugCanvas.setActive();
+        debugCanvas.setInactive();
         facebutton.className = "active";
         faceCanvas.canvas.style.display = "block";
-        faceCanvas.setInactive();
+        faceCanvas.setActive();
     }
     viewDebug(); // Active canvas is debug canvas initially
 
@@ -83,7 +83,6 @@
         requestAnimationFrame(activeCanvas.repaint.bind(activeCanvas));
         // Initialize facial landmarks
         getFacialLandmarks(image).then(points => {
-            console.log(points);
             faceCanvas.animating = true;
             faceCanvas.setPoints(points, W, H);
             requestAnimationFrame(activeCanvas.repaint.bind(activeCanvas));

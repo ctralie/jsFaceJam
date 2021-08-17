@@ -175,6 +175,9 @@ class FaceCanvas {
             let textureCoords = new Float32Array(getTextureCoordinates(points, W, H));
             gl.bindBuffer(gl.ARRAY_BUFFER, this.shader.textureCoordBuffer);
             gl.bufferData(gl.ARRAY_BUFFER, textureCoords, gl.STATIC_DRAW);
+            if (this.active) {
+                requestAnimationFrame(this.repaint.bind(this));
+            }
         }
     }
 
@@ -227,7 +230,7 @@ class FaceCanvas {
                             p.push(this.points[i][k]); // X coordinate remains fixed
                         }
                         else {
-                            p.push(this.points[i][k] + 5*(1+Math.sin(10*time))); // Y coordinate goes with cosine
+                            p.push(this.points[i][k] + 5*(1+Math.sin(10*this.time))); // Y coordinate goes with cosine
                         } 
                     }
                 } 
