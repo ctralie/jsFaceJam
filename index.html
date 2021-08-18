@@ -10,6 +10,7 @@
     <script src="faceutils.js"></script>
     <script src="facecanvas.js"></script>
     <script src="debugcanvas.js"></script>
+    <script src="progressbar.js"></script>
     <link rel="stylesheet" href="assets/css/main.css" />
     <meta charset="utf-8" />
 </head>
@@ -33,6 +34,11 @@
         </td>
         <td><b>Upload Image:</b> <input type = "file" id = "imageInput"></td>
         </tr>
+
+        <tr><td colspan = "3">
+            <h3><p id = "pagestatus">Waiting for user input...</p></h3>
+        </td></tr>
+
         <tr>
             <td colspan="3">
 
@@ -59,6 +65,7 @@
     let debugCanvas = new DebugCanvas();
     let activeCanvas = debugCanvas;
     let faceCanvas = new FaceCanvas(debugCanvas);
+    let progressBar = new ProgressBar();
     
 
     // Code to toggle back and forth between canvases
@@ -92,6 +99,7 @@
         image.onload = function() {
             imageLoaded(image);
         }
+        progressBar.startLoading();
     });
 
     let imageInput = document.getElementById('imageInput');
@@ -99,7 +107,7 @@
         var reader = new FileReader();
         reader.onload = function(e) {
             let arrayBufferView = new Uint8Array(e.target.result);
-            var blob = new Blob( [ arrayBufferView ], { type: imageInput.files[0].type } );
+            var blob = new Blob([arrayBufferView], {type: imageInput.files[0].type});
             var urlCreator = window.URL || window.webkitURL;
             var imageUrl = urlCreator.createObjectURL( blob );
             let image = new Image();
@@ -110,6 +118,7 @@
             }
         }
         reader.readAsArrayBuffer(imageInput.files[0]);
+        progressBar.startLoading();
     });
 
 

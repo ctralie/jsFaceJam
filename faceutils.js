@@ -10,6 +10,7 @@ let modelsLoaded = false;
  */
 async function getFacialLandmarks(img, pad) {
     if (!modelsLoaded) {
+        progressBar.loadString = "Loading face model (this will take a moment the first time)";
         await faceapi.loadSsdMobilenetv1Model(MODEL_URL);
         await faceapi.loadFaceLandmarkModel(MODEL_URL);
         modelsLoaded = true;
@@ -17,9 +18,10 @@ async function getFacialLandmarks(img, pad) {
     if (pad === undefined) {
         pad = 0.1;
     }
+    progressBar.loadString = "Computing facial landmarks";
     let fullFaceDescriptions = await faceapi.detectAllFaces(img).withFaceLandmarks();
     if (fullFaceDescriptions.length == 0) {
-        console.log("No faces found!");
+        progressBar.setLoadingFailed("No faces found!  Try another image");
         return;
     }
     let points = [];
@@ -68,6 +70,7 @@ function squareImageDrawn(image) {
         faceCanvas.animating = true;
         faceCanvas.setPoints(points);
         debugCanvas.updatePoints(points);
+        progressBar.changeToReady();
         requestAnimationFrame(activeCanvas.repaint.bind(activeCanvas));
     });
 }
