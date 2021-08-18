@@ -1,5 +1,7 @@
 const MODEL_URL = './libs/models/';
 
+let modelsLoaded = false;
+
 /**
  * Compute the facial landmarks
  * @param {Image} img Handle to an image on which to compute facial landmarks
@@ -7,13 +9,19 @@ const MODEL_URL = './libs/models/';
  * @returns 
  */
 async function getFacialLandmarks(img, pad) {
-    await faceapi.loadSsdMobilenetv1Model(MODEL_URL);
-    await faceapi.loadFaceLandmarkModel(MODEL_URL);
-
+    if (!modelsLoaded) {
+        await faceapi.loadSsdMobilenetv1Model(MODEL_URL);
+        await faceapi.loadFaceLandmarkModel(MODEL_URL);
+        modelsLoaded = true;
+    }
     if (pad === undefined) {
         pad = 0.1;
     }
     let fullFaceDescriptions = await faceapi.detectAllFaces(img).withFaceLandmarks();
+    if (fullFaceDescriptions.length == 0) {
+        console.log("No faces found!");
+        return;
+    }
     let points = [];
     for (i = 0; i < fullFaceDescriptions[0].landmarks.positions.length; i++) {
         X = fullFaceDescriptions[0].landmarks.positions[i].x;

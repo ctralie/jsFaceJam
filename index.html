@@ -10,20 +10,47 @@
     <script src="faceutils.js"></script>
     <script src="facecanvas.js"></script>
     <script src="debugcanvas.js"></script>
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="assets/css/main.css" />
     <meta charset="utf-8" />
 </head>
 <body>
 
-    <div class="tabmenu">
-        <button type="button" onclick="viewDebug()" id="debugbutton" class="active">Debug Canvas</button>
-        <button type="button" onclick="viewFace()" id="facebutton" class="">Face Canvas</button>
-    </div>
 
-    <canvas id = "DebugCanvas" style="border:1px solid #000000;">
-    </canvas>
-    <canvas id = "FaceCanvas" style="border:1px solid #000000;">
-    </canvas>
+    <table>
+        <tr>
+        <td colspan = "2"><b>Example Images</b>
+            <div class = "select-wrapper">
+                <select id="ExamplePictures" name = "ExamplePictures">
+                    <option value = "ExamplePhotos/awkwafina.jpg">Awkwafina</option>
+                    <option value = "ExamplePhotos/Cristiano.jpg">Cristiano D'Angelo</option>
+                    <option value = "ExamplePhotos/hannibal.jpg">Hannibal Buress</option>
+                    <option value = "ExamplePhotos/Igor.jpg">Igor</option>
+                    <option value = "ExamplePhotos/Parker.png">Parker Fairchild</option>
+                    <option value = "ExamplePhotos/profs.png">Profs</option>
+                </select>
+            </div>
+        
+        </td>
+        <td><b>Upload Image:</b> <input type = "file" id = "imageInput"></td>
+        </tr>
+        <tr>
+            <td colspan="3">
+
+                <div class="tabmenu">
+                    <button type="button" onclick="viewDebug()" id="debugbutton" class="active">Debug Canvas</button>
+                    <button type="button" onclick="viewFace()" id="facebutton" class="">Face Canvas</button>
+                </div>
+            
+                <canvas id = "DebugCanvas" style="border:1px solid #000000;">
+                </canvas>
+                <canvas id = "FaceCanvas" style="border:1px solid #000000;">
+                </canvas>
+
+            </td>
+        </tr>
+    </table>
+
+
 
 
 
@@ -57,13 +84,51 @@
     }
     viewDebug(); // Active canvas is debug canvas initially
 
-    let image = new Image();
-    image.src = "ExamplePhotos/Parker.png";
-    image.onload = function() {
-        imageLoaded(image);
-    }
+
+    var examplePictureMenu = document.getElementById("ExamplePictures");
+    examplePictureMenu.addEventListener('change', function(e){
+        let image = new Image();
+        image.src = e.target.value;
+        image.onload = function() {
+            imageLoaded(image);
+        }
+    });
+
+    let imageInput = document.getElementById('imageInput');
+    imageInput.addEventListener('change', function(e) {
+        var reader = new FileReader();
+        reader.onload = function(e) {
+            let arrayBufferView = new Uint8Array(e.target.result);
+            var blob = new Blob( [ arrayBufferView ], { type: imageInput.files[0].type } );
+            var urlCreator = window.URL || window.webkitURL;
+            var imageUrl = urlCreator.createObjectURL( blob );
+            let image = new Image();
+            image.src = imageUrl;
+            console.log(e.target.result);
+            image.onload = function() {
+                imageLoaded(image);
+            }
+        }
+        reader.readAsArrayBuffer(imageInput.files[0]);
+    });
+
+
 
 </script>
+
+
+<!-- Footer -->
+<footer id="footer">
+    <div class="inner">
+        <section>
+            
+        </section>
+        <ul class="copyright">
+            <li>&copy; <a href = "http://www.ctralie.com">Christopher J. Tralie, Parker Fairchild</a>. All rights reserved</li>
+            <li>Design: <a href="http://html5up.net">HTML5 UP</a>.</li> 
+        </ul>
+    </div>
+</footer>
 
 </body>
 </html>

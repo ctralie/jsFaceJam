@@ -4,8 +4,8 @@
 class DebugCanvas {
     constructor() {
         let canvas = document.getElementById('DebugCanvas');
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
+        canvas.width = 0.8*window.innerWidth;
+        canvas.height = 0.8*window.innerHeight;
         this.canvas = canvas;
         let ctx = canvas.getContext("2d"); //For drawing
         this.ctx = ctx;
