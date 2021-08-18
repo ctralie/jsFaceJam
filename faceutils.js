@@ -187,6 +187,7 @@ async function getFacialLandmarks(img) {
  * @return {array} An Nx2 array with the new facial landmarks
  */
  function transferFacialExpression(epsilon, Y) {
+    //let tic = (new Date()).getTime();
     // Step 1: Apply the coordinates to the model (coords = center + PCs*epsilon)
     let points1D = numeric.add(numeric.dot(FACE_EXPRESSIONS.PCs,epsilon), FACE_EXPRESSIONS.center);
     // Step 2: Unravel into 2D array
@@ -199,18 +200,23 @@ async function getFacialLandmarks(img) {
     // mean face, and compute barycentric coordinates
     let TIdx = [];
     let coords = [];
-    for (let ti = 0; ti < FACE_TRIS.length; ti+=3) {
-        let a = [CMODEL[FACE_TRIS[ti]*2], CMODEL[FACE_TRIS[ti]*2+1], 0];
-        let b = [CMODEL[FACE_TRIS[ti+1]*2], CMODEL[FACE_TRIS[ti+1]*2+1], 0];
-        let c = [CMODEL[FACE_TRIS[ti+2]*2], CMODEL[FACE_TRIS[ti+2]*2+1], 0];
-        for (let i = 0; i < XModelNew.length; i++) {
+    for (let i = 0; i < XModelNew.length; i++) {
+        TIdx.push(-1);
+        let ti = 0;
+        while(ti < FACE_TRIS.length && TIdx[i] == -1) {
+            let a = [CMODEL[FACE_TRIS[ti]*2], CMODEL[FACE_TRIS[ti]*2+1], 0];
+            let b = [CMODEL[FACE_TRIS[ti+1]*2], CMODEL[FACE_TRIS[ti+1]*2+1], 0];
+            let c = [CMODEL[FACE_TRIS[ti+2]*2], CMODEL[FACE_TRIS[ti+2]*2+1], 0];
             let coordsi = getBarycentricCoords(a, b, c, XModelNew[i]);
             if (coordsi.length > 0) {
                 TIdx[i] = ti;
                 coords[i] = coordsi;
             }
+            ti += 3;
         }
     }
+
+
     // Step 4: Transfer the barycentric coordinates to the new face
     let YNew = [];
     for (let i = 0; i < XModelNew.length; i++) {
@@ -228,6 +234,8 @@ async function getFacialLandmarks(img) {
     for (let i = 0; i < 8; i++) {
         YNew.push(Y[Y.length-8+i]);
     }
+    //let toc = (new Date()).getTime();
+    //console.log("Elapsed time point location: ", toc-tic);
     return YNew;
 }
 
