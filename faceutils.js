@@ -79,11 +79,14 @@ function squareImageDrawn(image) {
 function imageLoaded(image) {
     let offscreenCanvas = document.createElement("canvas");
     let res = Math.max(image.width, image.height);
+    let dw = image.width/res;
+    let dh = image.height/res;
+    res = Math.min(1024, res);
     offscreenCanvas.width = res;
     offscreenCanvas.height = res;
     let ctx = offscreenCanvas.getContext("2d");
     ctx.clearRect(0, 0, res, res);
-    ctx.drawImage(image, 0, 0);
+    ctx.drawImage(image, 0, 0, image.width, image.height, 0, 0, res*dw, res*dh);
 
     let squareImg = new Image();
     squareImg.src = offscreenCanvas.toDataURL();
