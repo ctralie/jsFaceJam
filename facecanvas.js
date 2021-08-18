@@ -36,7 +36,7 @@ function getVertexCoordinates(points) {
 }
 
 class FaceCanvas {
-    constructor( debugcanvas) {
+    constructor() {
         let canvas = document.getElementById('FaceCanvas');
         this.res = Math.floor(0.8*Math.min(window.innerWidth, window.innerHeight));
         canvas.width = this.res;
@@ -44,7 +44,6 @@ class FaceCanvas {
 
         canvas.addEventListener("contextmenu", function(e){ e.stopPropagation(); e.preventDefault(); return false; }); 
         this.canvas = canvas;
-        this.debugcanvas = debugcanvas;
         this.shader = null;
         this.texture = null;
 
@@ -190,7 +189,7 @@ class FaceCanvas {
         // Set the time
         this.thisTime = (new Date()).getTime();
         this.time += (this.thisTime - this.lastTime)/1000.0;
-        this.theta += (this.thisTime - this.lastTime)/1000.0;
+        this.theta += 10*(this.thisTime - this.lastTime)/1000.0;
         this.lastTime = this.thisTime;
         gl.uniform1f(shader.uTimeUniform, this.time);
 
@@ -211,8 +210,6 @@ class FaceCanvas {
             let epsilon = [FACE_EXPRESSIONS.sv[0]*Math.cos(this.theta),FACE_EXPRESSIONS.sv[1]*Math.sin(this.theta),0,0,0,0,0,0,0,0];
             let points = transferFacialExpression(epsilon, this.points);
             this.updateVertexBuffer(points);
-            this.debugcanvas.updatePoints(points);
-            this.debugcanvas.repaint();
             requestAnimationFrame(this.repaint.bind(this));
         }
     }

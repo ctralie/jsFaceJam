@@ -237,15 +237,12 @@ async function getFacialLandmarks(img) {
 function squareImageDrawn(image) {
     let texture = loadTexture(faceCanvas.gl, image);
     faceCanvas.updateTexture(texture);
-    debugCanvas.img = image;
-    requestAnimationFrame(activeCanvas.repaint.bind(activeCanvas));
     // Initialize facial landmarks
     getFacialLandmarks(image).then(points => {
         faceCanvas.animating = true;
         faceCanvas.setPoints(points);
-        debugCanvas.updatePoints(points);
         progressBar.changeToReady();
-        requestAnimationFrame(activeCanvas.repaint.bind(activeCanvas));
+        requestAnimationFrame(faceCanvas.repaint.bind(faceCanvas));
     });
 }
 

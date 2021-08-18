@@ -42,17 +42,8 @@
 
         <tr>
             <td colspan="3">
-
-                <div class="tabmenu">
-                    <button type="button" onclick="viewDebug()" id="debugbutton" class="active">Debug Canvas</button>
-                    <button type="button" onclick="viewFace()" id="facebutton" class="">Face Canvas</button>
-                </div>
-            
-                <canvas id = "DebugCanvas" style="border:1px solid #000000;">
-                </canvas>
                 <canvas id = "FaceCanvas" style="border:1px solid #000000;">
                 </canvas>
-
             </td>
         </tr>
     </table>
@@ -63,34 +54,9 @@
 
 
 <script>
-    let debugCanvas = new DebugCanvas();
-    let activeCanvas = debugCanvas;
-    let faceCanvas = new FaceCanvas(debugCanvas);
+    let faceCanvas = new FaceCanvas();
+    faceCanvas.setActive();
     let progressBar = new ProgressBar();
-    
-
-    // Code to toggle back and forth between canvases
-    let debugbutton = document.getElementById("debugbutton");
-    let facebutton = document.getElementById("facebutton");
-    function viewDebug() {
-        activeCanvas = debugCanvas;
-        debugbutton.className = "active";
-        debugCanvas.canvas.style.display = "block";
-        debugCanvas.setActive();
-        facebutton.className = "";
-        faceCanvas.canvas.style.display = "none";
-        faceCanvas.setInactive();
-    }
-    function viewFace() {
-        activeCanvas = faceCanvas;
-        debugbutton.className = "";
-        debugCanvas.canvas.style.display = "none";
-        debugCanvas.setInactive();
-        facebutton.className = "active";
-        faceCanvas.canvas.style.display = "block";
-        faceCanvas.setActive();
-    }
-    viewDebug(); // Active canvas is debug canvas initially
 
 
     var examplePictureMenu = document.getElementById("ExamplePictures");
@@ -110,7 +76,7 @@
             let arrayBufferView = new Uint8Array(e.target.result);
             var blob = new Blob([arrayBufferView], {type: imageInput.files[0].type});
             var urlCreator = window.URL || window.webkitURL;
-            var imageUrl = urlCreator.createObjectURL( blob );
+            var imageUrl = urlCreator.createObjectURL(blob);
             let image = new Image();
             image.src = imageUrl;
             console.log(e.target.result);
