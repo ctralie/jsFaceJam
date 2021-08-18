@@ -59,7 +59,9 @@ for (let i = 0; i < cpoints.length; i++) {
     CMODEL.push(cpoints[i][0]);
     CMODEL.push(cpoints[i][1]);
 }
-
+// Compute delaunay triangulation
+const CMODEL_DELAUNAY = new Delaunator(CMODEL);
+const FACE_TRIS = CMODEL_DELAUNAY._triangles;
 
 /**
  * Compute the facial landmarks
