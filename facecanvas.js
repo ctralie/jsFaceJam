@@ -180,9 +180,8 @@ class FaceCanvas {
             shader.then(requestAnimationFrame(that.repaint.bind(that)));
             return;
         }
-        //this.updateBarycentric();
         if (this.texture == null) {
-            console.log("Texture has not been initialized");
+            progressBar.setLoadingFailed("Please select an image to continue");
             return;
         }
         const gl = this.gl;
@@ -191,6 +190,7 @@ class FaceCanvas {
         // Set the time
         this.thisTime = (new Date()).getTime();
         this.time += (this.thisTime - this.lastTime)/1000.0;
+        this.theta += (this.thisTime - this.lastTime)/1000.0;
         this.lastTime = this.thisTime;
         gl.uniform1f(shader.uTimeUniform, this.time);
 
@@ -204,72 +204,17 @@ class FaceCanvas {
         gl.drawElements(gl.TRIANGLES, shader.indexBuffer.numItems, gl.UNSIGNED_SHORT, 0);
 
         // Keep the animation loop going
-        if (this.active && this.animating) {
+        if (this.active && this.animating && this.points.length > 0) {
             // TODO (Later, for expression transfer): Store first frame of Parker's face,
             // then do point location, and map through Barycentric coordinates to the new
             // neutral face
             let epsilon = [FACE_EXPRESSIONS.sv[0]*Math.cos(this.theta),FACE_EXPRESSIONS.sv[1]*Math.sin(this.theta),0,0,0,0,0,0,0,0];
-            //TODO: Use numeric.js to do the matrix multiplication and addition of the center
-            //Unravel the array into a 2D array
-            // Move eyebrows up and down
-            let points = [];
-            for (let i = 0; i < this.points.length; i++) {
-                let p = [];
-                if (16 < i && i < 27) {
-                    for (let k = 0; k < 2; k++) {
-                        if (k == 0) {
-                            p.push(this.points[i][k]); // X coordinate remains fixed
-                        }
-                        else {
-                            p.push(this.points[i][k] + 5*(1+Math.sin(10*this.time))); // Y coordinate goes with cosine
-                        } 
-                    }
-                } 
-                else {
-                    for (let k = 0; k < 2; k++) {
-                        p.push(this.points[i][k]);
-                    }
-                } 
-                points.push(p);
-            }
-            this.theta += 0.1;
+            let points = transferFacialExpression(epsilon, this.points);
             this.updateVertexBuffer(points);
-            //this.debugcanvas.updatePoints(points);
-            //this.debugcanvas.repaint();
+            this.debugcanvas.updatePoints(points);
+            this.debugcanvas.repaint();
             requestAnimationFrame(this.repaint.bind(this));
         }
-    }
-
-    /**
-     * In the below: X refers to model, Y refers to new face image that's been inputted
-     * Given that we have N landmarks, given the expression model expressions,
-     * and given a set of coordinates "epsilon" to apply to the model
-     * 1) Apply the coordinates to the model (coords = center + PCs*epsilon)
-     * 2) Unravel the coordinates into XModelNew (N x 2).  Now we have 2D coordinates 
-     *      for the *model face* in a new expression determined by epsilon
-     * 3) Come up with barycentric coordinates alpha_i and triangle index T_i 
-     *      for every x_i in XModelNew
-     * 4) Given Y (N x 2), the coordinates of the new face landmarks.  For each
-     *      y_i in Y, apply alpha_i to triangle T_i, using the appropriate coordinates
-     *      Y as the vertices of triangle T_i
-     *      In particular, if alpha_i = (scalar a, scalar b, scalar c), 
-     *      and T_i = (vector y_a, vector y_b, vector y_c)
-     *      final re-positioning of y_i = a*y_a + b*y_b + c*y_c
-     */
-    updateBarycentric(epsilon) {
-        // Step 1:
-        let points1D = numeric.add(numeric.dot(FACE_EXPRESSIONS.PCs,epsilon), FACE_EXPRESSIONS.center);
-        // Step 2: Unravel into 2D array
-        let XModelNew = [];
-        for (let i = 0; i < points1D.length; i += 2) {
-            XModelNew.push([points1D[i],points1D[i+1]]);
-        }
-        // Step 3: TODO
-
-        // Step 4: TODO
-
-        // Return Y
-
     }
 }
 
