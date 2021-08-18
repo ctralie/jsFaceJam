@@ -5,18 +5,16 @@
 
 /**
  * Given a list of pixel locations on an image, transform them into texture coordinates
+ * @param {2d array} points An array of points, each of which is a list [x, y].
+ * It is assumed that the last point has coordinates [width, width]
+ *  
  */
-function getTextureCoordinates(points, W, H) {
+function getTextureCoordinates(points) {
     let texPoints = [];
-    let divisor = 0;
-    if (W > H) {
-        divisor = W;
-    } else {
-        divisor = H;
-    }
+    let res = points[points.length-1][0];
     for (i = 0; i < points.length; i++) {
-        texPoints[i*2] = points[i][0]/divisor;
-        texPoints[(i*2)+1] = points[i][1]/divisor;
+        texPoints[i*2] = points[i][0]/res;
+        texPoints[(i*2)+1] = points[i][1]/res;
     }
     return texPoints;
 }
@@ -24,18 +22,15 @@ function getTextureCoordinates(points, W, H) {
 /**
  * Given a list of pixel locations on an image, transform them into
  * vertex coordinates to be displayed on the viewing square [-1, 1] x [-1, 1]
+ * @param {2d array} points An array of points, each of which is a list [x, y]
+ * It is assumed that the last point has coordinates [width, width]
  */
-function getVertexCoordinates(points, W, H) {
+function getVertexCoordinates(points) {
     let vertPoints = [];
-    let divisor = 0;
-    if (W > H) {
-        divisor = W;
-    } else {
-        divisor = H;
-    }     
+    let res = points[points.length-1][0];
     for (i = 0; i < points.length; i++) {
-        vertPoints[i*2] = 2*points[i][0]/divisor - 1;
-        vertPoints[(i*2)+1] = 1 - (2*points[i][1]/divisor);
+        vertPoints[i*2] = 2*points[i][0]/res - 1;
+        vertPoints[(i*2)+1] = 1 - (2*points[i][1]/res);
     }
     return vertPoints;
 }
@@ -43,6 +38,10 @@ function getVertexCoordinates(points, W, H) {
 class FaceCanvas {
     constructor( debugcanvas) {
         let canvas = document.getElementById('FaceCanvas');
+        this.res = Math.floor(0.8*Math.min(window.innerWidth, window.innerHeight));
+        canvas.width = this.res;
+        canvas.height = this.res;
+
         canvas.addEventListener("contextmenu", function(e){ e.stopPropagation(); e.preventDefault(); return false; }); 
         this.canvas = canvas;
         this.debugcanvas = debugcanvas;
@@ -56,16 +55,13 @@ class FaceCanvas {
         this.animating = false;
         this.theta = 0;
 
-        this.W = 1;
-        this.H = 1;
-
         this.active = false;
 
         // Initialize WebGL
         try {
             this.gl = canvas.getContext("webgl");
-            this.gl.viewportWidth = canvas.width;
-            this.gl.viewportHeight = canvas.height;
+            this.gl.viewportWidth = this.res;
+            this.gl.viewportHeight = this.res;
             this.setupShader();
         } catch (e) {
             console.log(e);
@@ -137,18 +133,15 @@ class FaceCanvas {
      * the face around
      * 
      * @param {2d array} points An array of points, each of which is a list [x, y]
-     * @param {int} W Number of pixels across the width
-     * @param {int} H Number of pixels across the height
      */
-    updateVertexBuffer(points, W, H) {
+    updateVertexBuffer(points) {
         let that = this;
         if (!('shaderReady' in this.shader)) {
-            this.shader.then(that.updateVertexBuffer(points, W, H).bind(that));
+            this.shader.then(that.updateVertexBuffer(points).bind(that));
         }
         else {
             const gl = this.gl;
-            console.log(points);
-            let vertPoints = getVertexCoordinates(points, W, H);
+            let vertPoints = getVertexCoordinates(points);
             vertPoints = new Float32Array(vertPoints);
             gl.bindBuffer(gl.ARRAY_BUFFER, this.shader.positionBuffer);
             gl.bufferData(gl.ARRAY_BUFFER, vertPoints, gl.STATIC_DRAW);
@@ -160,22 +153,17 @@ class FaceCanvas {
      * and texture coordinate buffer.
      * 
      * @param {2d array} points An array of points, each of which is a list [x, y]
-     * @param {int} W Number of pixels across the width
-     * @param {int} H Number of pixels across the height
      */
-     setPoints(points, W, H) {
+     setPoints(points) {
         let that = this;
         if (!('shaderReady' in this.shader)) {
-            this.shader.then(that.setPoints(points, W, H).bind(that));
+            this.shader.then(that.setPoints(points).bind(that));
         }
         else {
             this.points = points;
-            this.W = W;
-            this.H = H;
             const gl = this.gl;
-            this.debugcanvas.updatePoints(points, W, H);
-            this.updateVertexBuffer(points, W, H);
-            let textureCoords = new Float32Array(getTextureCoordinates(points, W, H));
+            this.updateVertexBuffer(points);
+            let textureCoords = new Float32Array(getTextureCoordinates(points));
             gl.bindBuffer(gl.ARRAY_BUFFER, this.shader.textureCoordBuffer);
             gl.bufferData(gl.ARRAY_BUFFER, textureCoords, gl.STATIC_DRAW);
             if (this.active) {
@@ -245,7 +233,7 @@ class FaceCanvas {
                 points.push(p);
             }
             this.theta += 0.1;
-            this.updateVertexBuffer(points, this.W, this.H);
+            this.updateVertexBuffer(points);
             //this.debugcanvas.updatePoints(points);
             //this.debugcanvas.repaint();
             requestAnimationFrame(this.repaint.bind(this));

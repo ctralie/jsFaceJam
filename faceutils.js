@@ -45,3 +45,41 @@ async function getFacialLandmarks(img, pad) {
     points.push([minX,minY],[maxX,minY],[minX,maxY],[maxX,maxY],[0,0],[img.width,0],[0,img.height],[img.width,img.height]);
     return points;
 }
+
+/**
+ * Callback once a square version of an image has been drawn, with padding
+ * @param {Image} image A Javascript handle to a square image
+ */
+function squareImageDrawn(image) {
+    let texture = loadTexture(faceCanvas.gl, image);
+    faceCanvas.updateTexture(texture);
+    debugCanvas.img = image;
+    requestAnimationFrame(activeCanvas.repaint.bind(activeCanvas));
+    // Initialize facial landmarks
+    getFacialLandmarks(image).then(points => {
+        faceCanvas.animating = true;
+        faceCanvas.setPoints(points);
+        debugCanvas.updatePoints(points);
+        requestAnimationFrame(activeCanvas.repaint.bind(activeCanvas));
+    });
+}
+
+/**
+ * Use an offscreen canvas to draw this image to a square region
+ * @param {Image} image A Javascript image handle
+ */
+function imageLoaded(image) {
+    let offscreenCanvas = document.createElement("canvas");
+    let res = Math.max(image.width, image.height);
+    offscreenCanvas.width = res;
+    offscreenCanvas.height = res;
+    let ctx = offscreenCanvas.getContext("2d");
+    ctx.clearRect(0, 0, res, res);
+    ctx.drawImage(image, 0, 0);
+
+    let squareImg = new Image();
+    squareImg.src = offscreenCanvas.toDataURL();
+    squareImg.onload = function() {
+        squareImageDrawn(squareImg);
+    }
+}

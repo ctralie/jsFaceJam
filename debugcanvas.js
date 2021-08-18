@@ -4,6 +4,8 @@
 class DebugCanvas {
     constructor() {
         let canvas = document.getElementById('DebugCanvas');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
         this.canvas = canvas;
         let ctx = canvas.getContext("2d"); //For drawing
         this.ctx = ctx;
@@ -11,8 +13,6 @@ class DebugCanvas {
         canvas.addEventListener("contextmenu", function(e){ e.stopPropagation(); e.preventDefault(); return false; }); 
         this.img = null;
         this.points = [];
-        this.W = 1;
-        this.H = 1;
         this.active = false;
     }
 
@@ -28,13 +28,9 @@ class DebugCanvas {
     /**
      * Update the points that will be drawn in this canvas
      * @param {2d array} points An array of points, each of which is a list [x, y]
-     * @param {int} W Number of pixels across the width
-     * @param {int} H Number of pixels across the height
      */
     updatePoints(points, W, H) {
         this.points = points;
-        this.W = W;
-        this.H = H;
     }
 
     repaint() {
@@ -43,7 +39,7 @@ class DebugCanvas {
         }
 		const dW = 5;
         let ctx = this.ctx;
-		ctx.clearRect(0, 0, this.W, this.H); // Puts white over everything to clear it
+		ctx.clearRect(0, 0, this.canvas.width, this.canvas.height); // Puts white over everything to clear it
         ctx.drawImage(this.img, 0, 0);
         for (let i = 0; i < FACE_TRIS.length; i += 3) {
             for (let k = 0; k < 3; k++) {
