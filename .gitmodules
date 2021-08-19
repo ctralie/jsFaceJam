@@ -1,0 +1,3 @@
+[submodule "jsanov"]
+	path = jsanov
+	url = https://github.com/FaceJam/jsanov.git
