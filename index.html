@@ -58,6 +58,13 @@
         <tr><td colspan = "4">
             <h3><p id = "pagestatus">Waiting for user input...</p></h3>
         </td></tr>
+        <tr>
+            <td colspan="4">
+                <audio controls id="audioPlayer" style="width: 80%;">
+                  Your browser does not support the audio element.
+                  </audio> 
+            </td>
+        </tr>
 
         <tr>
             <td colspan="4">
@@ -78,7 +85,9 @@
     let audio = new SampledAudio();
     let progressBar = new ProgressBar();
 
-
+    /********************************************************
+     *                 PICTURE MENUS                        *
+     ********************************************************/
     let examplePictureMenu = document.getElementById("ExamplePictures");
     examplePictureMenu.addEventListener('change', function(e){
         let image = new Image();
@@ -109,11 +118,16 @@
     });
 
 
+    /********************************************************
+     *                    TUNE MENUS                        *
+     ********************************************************/
+    let audioPlayer = document.getElementById("audioPlayer");
+
     let exampleTuneMenu = document.getElementById("ExampleTunes");
     exampleTuneMenu.addEventListener('change', function(e){
         audio.loadFile(e.target.value).then(function(){
             progressBar.changeToReady("Finished loading audio");
-            audio.playAudio();
+            audio.connectAudioPlayer(audioPlayer);
         });
         progressBar.loadString = "Loading audio";
         progressBar.startLoading();

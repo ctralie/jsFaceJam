@@ -185,7 +185,6 @@ class FaceCanvas {
             return;
         }
         if (this.texture == null) {
-            progressBar.setLoadingFailed("Please select an image to continue");
             return;
         }
         const gl = this.gl;
