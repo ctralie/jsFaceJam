@@ -309,10 +309,7 @@ function squareImageDrawn(image) {
     faceCanvas.updateTexture(texture);
     // Initialize facial landmarks
     getFacialLandmarks(image).then(points => {
-        faceCanvas.animating = true;
         faceCanvas.setPoints(points);
-        progressBar.changeToReady();
-        requestAnimationFrame(faceCanvas.repaint.bind(faceCanvas));
     });
 }
 

@@ -9,7 +9,13 @@ function ProgressBar() {
     this.loadColor = "#cccc00";
     this.ndots = 0;
     this.waitingDisp = document.getElementById("pagestatus");
-    this.startLoading = function() {
+    this.startLoading = function(message) {
+        if (message === undefined) {
+            this.loadString = "Loading";
+        }
+        else {
+            this.loadString = message;
+        }
         this.loading = true;
         this.changeLoad();
     }

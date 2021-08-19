@@ -56,7 +56,7 @@
         </tr>
 
         <tr><td colspan = "4">
-            <h3><p id = "pagestatus">Waiting for user input...</p></h3>
+            <h3><p id = "pagestatus">Welcome to FaceJam!  Please choose an image and a tune to start</p></h3>
         </td></tr>
         <tr>
             <td colspan="4">
@@ -75,80 +75,7 @@
     </table>
 
 
-
-
-
-
-<script>
-    let faceCanvas = new FaceCanvas();
-    faceCanvas.setActive();
-    let audio = new SampledAudio();
-    let progressBar = new ProgressBar();
-
-    /********************************************************
-     *                 PICTURE MENUS                        *
-     ********************************************************/
-    let examplePictureMenu = document.getElementById("ExamplePictures");
-    examplePictureMenu.addEventListener('change', function(e){
-        let image = new Image();
-        image.src = e.target.value;
-        image.onload = function() {
-            imageLoaded(image);
-        }
-        progressBar.startLoading();
-    });
-
-    let imageInput = document.getElementById('imageInput');
-    imageInput.addEventListener('change', function(e) {
-        let reader = new FileReader();
-        reader.onload = function(e) {
-            let arrayBufferView = new Uint8Array(e.target.result);
-            let blob = new Blob([arrayBufferView], {type: imageInput.files[0].type});
-            let urlCreator = window.URL || window.webkitURL;
-            let imageUrl = urlCreator.createObjectURL(blob);
-            let image = new Image();
-            image.src = imageUrl;
-            console.log(e.target.result);
-            image.onload = function() {
-                imageLoaded(image);
-            }
-        }
-        reader.readAsArrayBuffer(imageInput.files[0]);
-        progressBar.startLoading();
-    });
-
-
-    /********************************************************
-     *                    TUNE MENUS                        *
-     ********************************************************/
-    let audioPlayer = document.getElementById("audioPlayer");
-
-    let exampleTuneMenu = document.getElementById("ExampleTunes");
-    exampleTuneMenu.addEventListener('change', function(e){
-        audio.loadFile(e.target.value).then(function(){
-            progressBar.changeToReady("Finished loading audio");
-            audio.connectAudioPlayer(audioPlayer);
-        });
-        progressBar.loadString = "Loading audio";
-        progressBar.startLoading();
-    });
-
-    let tuneInput = document.getElementById('tuneInput');
-    tuneInput.addEventListener('change', function(e) {
-        let reader = new FileReader();
-        reader.onload = function(e) {
-            audio.setSamplesAudioBuffer(e.target.result).then(function(){
-                progressBar.changeToReady("Finished loading audio");
-            });
-        }
-        reader.readAsArrayBuffer(tuneInput.files[0]);
-        progressBar.loadString = "Loading audio";
-        progressBar.startLoading();
-    });
-
-
-
-</script>
+<script src="main.js"></script>
 
 
 <!-- Footer -->

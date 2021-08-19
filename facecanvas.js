@@ -36,7 +36,12 @@ function getVertexCoordinates(points) {
 }
 
 class FaceCanvas {
-    constructor() {
+    /**
+     * 
+     * @param {int} hop Hop length for audio features (default 512)
+     * @param {int} win Window length for audio features (default 2048)
+     */
+    constructor(hop, win) {
         let canvas = document.getElementById('FaceCanvas');
         this.res = Math.floor(0.8*Math.min(window.innerWidth, window.innerHeight));
         canvas.width = this.res;
@@ -47,7 +52,22 @@ class FaceCanvas {
         this.shader = null;
         this.texture = null;
 
+        this.audio = null; // SampledAudio object
+        this.audioPlayer = document.getElementById("audioPlayer");
+        this.audioReady = false;
+        if (hop === undefined) {
+            hop = 512;
+        }
+        if (win === undefined) {
+            win = 2048;
+        }
+        this.hop = hop;
+        this.win = win;
+        this.novfn = [];
+        this.setupAudioHandlers();
+
         this.time = 0.0;
+        this.faceReady = false;
         this.thisTime = (new Date()).getTime();
         this.lastTime = this.thisTime;
         this.time = 0;
@@ -65,6 +85,44 @@ class FaceCanvas {
         } catch (e) {
             console.log(e);
         }
+    }
+
+    setupAudioHandlers() {
+        const that = this;
+        function printMissing() {
+            if (!that.faceReady) {
+                progressBar.setLoadingFailed("Be sure to load a face to see the animation!");
+            }
+            else if(!that.audioReady) {
+                progressBar.setLoadingFailed("Be sure to load a tune!");
+            }
+        }
+        this.audioPlayer.addEventListener("play", function() {
+            if (that.faceReady && that.audioReady) {
+                that.animating = true;
+                requestAnimationFrame(that.repaint.bind(that));
+            }
+            else {
+                printMissing();
+            }
+        });
+        this.audioPlayer.addEventListener("pause", function() {
+            that.animating = false;
+            if (that.faceReady && that.audioReady) {
+                requestAnimationFrame(that.repaint.bind(that));
+            }
+            else {
+                printMissing();
+            }
+        });
+        this.audioPlayer.addEventListener("seek", function() {
+            if (that.faceReady && that.audioReady) {
+                requestAnimationFrame(that.repaint.bind(that));
+            }
+            else {
+                printMissing();
+            }
+        });
     }
 
     setActive() {
@@ -122,6 +180,30 @@ class FaceCanvas {
         });
     }
 
+    /**
+     * Connect audio to this face canvas and compute the features
+     * @param {SampledAudio} audio A SampledAudio object with loaded audio samples
+     */
+    connectAudio(audio) {
+        const that = this;
+        this.audio = audio;
+        audio.connectAudioPlayer(this.audioPlayer);
+        audio.getSuperfluxNovfn(this.win, this.hop).then(novfn => {
+            // Normalize audio novelty function
+            let max = 0;
+            for (let i = 0; i < novfn.length; i++) {
+                max = Math.max(max, novfn[i]);
+            }
+            for (let i = 0; i < novfn.length; i++) {
+                novfn[i] /= max;
+            }
+            that.novfn = novfn;
+            that.audioReady = true;
+            progressBar.changeToReady();
+        });
+        progressBar.startLoading("Computing audio novelty function");
+    }
+
     updateTexture(texture) {
         this.texture = texture;
     }
@@ -169,6 +251,8 @@ class FaceCanvas {
                 if (this.active) {
                     requestAnimationFrame(this.repaint.bind(this));
                 }
+                this.faceReady = true;
+                progressBar.changeToReady();
             }
         }
         else {
@@ -207,15 +291,23 @@ class FaceCanvas {
         gl.drawElements(gl.TRIANGLES, shader.indexBuffer.numItems, gl.UNSIGNED_SHORT, 0);
 
         // Keep the animation loop going
-        if (this.active && this.animating && this.points.length > 0) {
+        let time = this.audioPlayer.currentTime;
+        if (this.active && this.points.length > 0) {
             // TODO (Later, for expression transfer): Store first frame of Parker's face,
             // then do point location, and map through Barycentric coordinates to the new
             // neutral face
-            let epsilon = [FACE_EXPRESSIONS.sv[0]*Math.cos(this.theta),FACE_EXPRESSIONS.sv[1]*Math.sin(this.theta),0,0,0,0,0,0,0,0];
-            epsilon[0] = 0;
-            epsilon[1] = 1;
-            let points = transferFacialExpression(epsilon, this.points, 5*Math.cos(this.theta));
+            let epsilon = [0,0,0,0,0,0,0,0,0,0];
+            let eyebrow = 0;
+            if (this.audioReady && this.faceReady) {
+                let idx = Math.floor(time*this.audio.sr/this.hop);
+                if (idx < this.novfn.length) {
+                    eyebrow = this.novfn[idx]*20;
+                }
+            }
+            let points = transferFacialExpression(epsilon, this.points, eyebrow);
             this.updateVertexBuffer(points);
+        }
+        if (this.animating) {
             requestAnimationFrame(this.repaint.bind(this));
         }
     }
