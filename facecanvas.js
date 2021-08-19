@@ -64,7 +64,10 @@ class FaceCanvas {
         this.hop = hop;
         this.win = win;
         this.novfn = [];
+        this.featureCoords = [];
         this.setupAudioHandlers();
+
+        this.energySlider = document.getElementById("energySlider");
 
         this.time = 0.0;
         this.faceReady = false;
@@ -189,7 +192,7 @@ class FaceCanvas {
         this.audio = audio;
         audio.connectAudioPlayer(this.audioPlayer);
         audio.getSuperfluxNovfn(this.win, this.hop).then(novfn => {
-            // Normalize audio novelty function
+            // Step 1: Normalize the audio novelty function
             let max = 0;
             for (let i = 0; i < novfn.length; i++) {
                 max = Math.max(max, novfn[i]);
@@ -198,8 +201,26 @@ class FaceCanvas {
                 novfn[i] /= max;
             }
             that.novfn = novfn;
-            that.audioReady = true;
-            progressBar.changeToReady();
+            // Step 2: Compute mel features
+            progressBar.loadString = "Computing Mel features";
+            const sr = that.audio.sr;
+            let win = Math.floor(Math.log2(sr/4));
+            win = Math.pow(2, win);
+            //let win = that.win*2;
+            audio.getSpectrogram(win, that.hop).then(S => {
+                let M = getMelFilterbank(win, sr, 80, Math.min(8000, sr/2), 100);
+                let X = numeric.dot(S, M);
+                X = doPCA(X, FACE_EXPRESSIONS.sv.length, 20);
+                let Y = getSTDevNorm(X);
+                console.log(Y);
+                that.featureCoords = Y;
+                that.audioReady = true;
+                progressBar.changeToReady();
+            }).catch(reason => {
+                progressBar.setLoadingFailed(reason);
+            });
+        }).catch(reason => {
+            progressBar.setLoadingFailed(reason);
         });
         progressBar.startLoading("Computing audio novelty function");
     }
@@ -296,12 +317,17 @@ class FaceCanvas {
             // TODO (Later, for expression transfer): Store first frame of Parker's face,
             // then do point location, and map through Barycentric coordinates to the new
             // neutral face
-            let epsilon = [0,0,0,0,0,0,0,0,0,0];
+            let epsilon = new Float32Array(FACE_EXPRESSIONS.sv.length);
             let eyebrow = 0;
             if (this.audioReady && this.faceReady) {
                 let idx = Math.floor(time*this.audio.sr/this.hop);
-                if (idx < this.novfn.length) {
+                /*if (idx < this.novfn.length) {
                     eyebrow = this.novfn[idx]*20;
+                }*/
+                if (idx < this.novfn.length) {
+                    for (let i = 0; i < this.featureCoords[idx].length; i++) {
+                        epsilon[i] = this.energySlider.value*this.featureCoords[idx][i]*FACE_EXPRESSIONS.sv[i];
+                    }
                 }
             }
             let points = transferFacialExpression(epsilon, this.points, eyebrow);

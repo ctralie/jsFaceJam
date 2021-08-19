@@ -12,7 +12,7 @@
     <script src="jsanov/wav.js"></script>
     <script src="jsanov/audio.js"></script>
 
-    <script src="pca.js"></script>
+    <script src="matrixutils.js"></script>
     <script src="shaders.js"></script>
     <script src="texture.js"></script>
     <script src="expressionsmodel.js"></script>
@@ -28,7 +28,7 @@
 
     <table>
         <tr>
-            <td colspan = "2"><b>Example Tunes</b>
+            <td colspan = "2"><b>Example Tunes 🎵</b>
                 <div class = "select-wrapper">
                     <select id="ExampleTunes" name = "ExampleTunes">
                         <option value = "ExampleTunes/barry.mp3">Barry White</option>
@@ -40,7 +40,7 @@
             <td><b>Upload Tune:</b> <input type = "file" id = "tuneInput"></td>
         </tr>
         <tr>
-        <td colspan = "2"><b>Example Images</b>
+        <td colspan = "2"><b>Example Images 🎨</b>
             <div class = "select-wrapper">
                 <select id="ExamplePictures" name = "ExamplePictures">
                     <option value = "ExamplePhotos/awkwafina.jpg">Awkwafina</option>
@@ -56,7 +56,7 @@
         </tr>
 
         <tr><td colspan = "4">
-            <h3><p id = "pagestatus">Welcome to FaceJam!  Please choose an image and a tune to start</p></h3>
+            <h3><p id = "pagestatus">😱Welcome to FaceJam!🙀  Please choose an image and a tune 🎵 to start</p></h3>
         </td></tr>
         <tr>
             <td colspan="4">
@@ -65,7 +65,12 @@
                   </audio> 
             </td>
         </tr>
-
+        <tr>
+            <td colspan="4">
+                <input type="range" min="0" max="100" value="20" class="slider" id="energySlider">
+                <label for="energySlider">Energy</label>
+            </td>
+        </tr>
         <tr>
             <td colspan="4">
                 <canvas id = "FaceCanvas" style="border:1px solid #000000;">
