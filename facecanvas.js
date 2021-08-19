@@ -213,7 +213,9 @@ class FaceCanvas {
             // then do point location, and map through Barycentric coordinates to the new
             // neutral face
             let epsilon = [FACE_EXPRESSIONS.sv[0]*Math.cos(this.theta),FACE_EXPRESSIONS.sv[1]*Math.sin(this.theta),0,0,0,0,0,0,0,0];
-            let points = transferFacialExpression(epsilon, this.points);
+            epsilon[0] = 0;
+            epsilon[1] = 1;
+            let points = transferFacialExpression(epsilon, this.points, 5*Math.cos(this.theta));
             this.updateVertexBuffer(points);
             requestAnimationFrame(this.repaint.bind(this));
         }

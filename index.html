@@ -28,6 +28,18 @@
 
     <table>
         <tr>
+            <td colspan = "2"><b>Example Tunes</b>
+                <div class = "select-wrapper">
+                    <select id="ExampleTunes" name = "ExampleTunes">
+                        <option value = "ExampleTunes/barry.mp3">Barry White</option>
+                        <option value = "ExampleTunes/beyonce.mp3">Beyoncé</option>
+                        <option value = "ExampleTunes/erykah.mp3">Erykah Badu</option>
+                    </select>
+                </div>
+            </td>
+            <td><b>Upload Tune:</b> <input type = "file" id = "tuneInput"></td>
+        </tr>
+        <tr>
         <td colspan = "2"><b>Example Images</b>
             <div class = "select-wrapper">
                 <select id="ExamplePictures" name = "ExamplePictures">
@@ -39,17 +51,16 @@
                     <option value = "ExamplePhotos/profs.png">Profs</option>
                 </select>
             </div>
-        
         </td>
         <td><b>Upload Image:</b> <input type = "file" id = "imageInput"></td>
         </tr>
 
-        <tr><td colspan = "3">
+        <tr><td colspan = "4">
             <h3><p id = "pagestatus">Waiting for user input...</p></h3>
         </td></tr>
 
         <tr>
-            <td colspan="3">
+            <td colspan="4">
                 <canvas id = "FaceCanvas" style="border:1px solid #000000;">
                 </canvas>
             </td>
@@ -64,6 +75,7 @@
 <script>
     let faceCanvas = new FaceCanvas();
     faceCanvas.setActive();
+    let audio = new SampledAudio();
     let progressBar = new ProgressBar();
 
 
@@ -92,8 +104,31 @@
                 imageLoaded(image);
             }
         }
-        console.log(imageInput.files[0]);
         reader.readAsArrayBuffer(imageInput.files[0]);
+        progressBar.startLoading();
+    });
+
+
+    let exampleTuneMenu = document.getElementById("ExampleTunes");
+    exampleTuneMenu.addEventListener('change', function(e){
+        audio.loadFile(e.target.value).then(function(){
+            progressBar.changeToReady("Finished loading audio");
+            audio.playAudio();
+        });
+        progressBar.loadString = "Loading audio";
+        progressBar.startLoading();
+    });
+
+    let tuneInput = document.getElementById('tuneInput');
+    tuneInput.addEventListener('change', function(e) {
+        let reader = new FileReader();
+        reader.onload = function(e) {
+            audio.setSamplesAudioBuffer(e.target.result).then(function(){
+                progressBar.changeToReady("Finished loading audio");
+            });
+        }
+        reader.readAsArrayBuffer(tuneInput.files[0]);
+        progressBar.loadString = "Loading audio";
         progressBar.startLoading();
     });
 

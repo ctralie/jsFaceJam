@@ -195,9 +195,11 @@ function getTri(ti) {
  * 1) Apply the coordinates to the model (coords = center + PCs*epsilon)
  * 2) Unravel the coordinates into XModelNew (N x 2).  Now we have 2D coordinates 
  *      for the *model face* in a new expression determined by epsilon
- * 3) Come up with barycentric coordinates alpha_i and triangle index T_i 
+ * 3) Apply eyebrow motion by moving eyebrow landmarks vertically.  This assumes
+ *    the head is aligned vertically in the model
+ * 4) Come up with barycentric coordinates alpha_i and triangle index T_i 
  *      for every x_i in XModelNew
- * 4) Given Y (N x 2), the coordinates of the new face landmarks.  For each
+ * 5) Given Y (N x 2), the coordinates of the new face landmarks.  For each
  *      y_i in Y, apply alpha_i to triangle T_i, using the appropriate coordinates
  *      Y as the vertices of triangle T_i
  *      In particular, if alpha_i = (scalar a, scalar b, scalar c), 
@@ -206,9 +208,14 @@ function getTri(ti) {
  * @param {array} epsilon The coordinates of the expression
  * @param {array} Y An Nx2 array of the coordinates of the new face landmarks, assumed
  *                  to be in a neutral expression
+ * @param {float} dEyebrow Signed amount of eyebrow movement (default 0)
+ * 
  * @return {array} An Nx2 array with the new facial landmarks
  */
- function transferFacialExpression(epsilon, Y) {
+ function transferFacialExpression(epsilon, Y, dEyebrow) {
+    if (dEyebrow === undefined) {
+        dEyebrow = 0;
+    }
     let tic = (new Date()).getTime();
     // Step 1: Apply the coordinates to the model (coords = center + PCs*epsilon)
     let points1D = numeric.add(numeric.dot(FACE_EXPRESSIONS.PCs,epsilon), FACE_EXPRESSIONS.center);
@@ -218,7 +225,13 @@ function getTri(ti) {
         // Make 3D with implied z=0 so we can use vec3
         XModelNew.push([points1D[i],points1D[i+1], 0]); 
     }
-    // Step 3: Do point location on every point in XModelNew with respect to the 
+    // Step 3: Apply eyebrow motion
+    if (dEyebrow != 0) {
+        for (let i = EYEBROW_START; i <= EYEBROW_END; i++) {
+            XModelNew[i][1] += dEyebrow;
+        }
+    }
+    // Step 4: Do point location on every point in XModelNew with respect to the 
     // mean face, and compute barycentric coordinates
     let TIdx = [];
     let coords = [];
@@ -264,7 +277,7 @@ function getTri(ti) {
             }
         }
     }
-    // Step 4: Transfer the barycentric coordinates to the new face
+    // Step 5: Transfer the barycentric coordinates to the new face
     let YNew = [];
     for (let i = 0; i < XModelNew.length; i++) {
         let ti = TIdx[i];

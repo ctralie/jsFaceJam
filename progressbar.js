@@ -28,9 +28,12 @@ function ProgressBar() {
             setTimeout(this.changeLoad.bind(this), 200);
         }
     };
-    this.changeToReady = function() {
+    this.changeToReady = function(message) {
         this.loading = false;
-        this.waitingDisp.innerHTML = "<h3><font color = \"#009900\">Ready</font></h3>";
+        if (message === undefined) {
+            message = "Ready";
+        }
+        this.waitingDisp.innerHTML = "<h3><font color = \"#009900\">" + message + "</font></h3>";
     };
     this.setLoadingFailed = function(message) {
         if (message === undefined) {
