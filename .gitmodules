@@ -1,0 +1,3 @@
+[submodule "jsanov"]
+	path = jsanov
+	url = https://github.com/ctralie/jsanov.git
