@@ -7,7 +7,7 @@ const vec3 = glMatrix.vec3;
 const vec2 = glMatrix.vec2;
 const MODEL_URL = './libs/models/';
 const BBOX_PAD = 0.1;
-let modelsLoaded = false;
+let landmarkModelsLoaded = false;
 
 
 /**
@@ -62,6 +62,16 @@ for (let i = 0; i < cpoints.length; i++) {
 // Compute delaunay triangulation
 const CMODEL_DELAUNAY = new Delaunator(CMODEL);
 const FACE_TRIS = CMODEL_DELAUNAY._triangles;
+// Create quick lookup structure for adjacent triangles
+const ADJACENT_TRIS = [];
+for (let i = 0; i < CMODEL.length; i++) {
+    ADJACENT_TRIS.push([]);
+}
+for (let ti = 0; ti < FACE_TRIS.length/3; ti++) {
+    for (let k = 0; k < 3; k++) {
+        ADJACENT_TRIS[FACE_TRIS[ti*3+k]].push(ti);
+    }
+}
 
 /**
  * Compute the facial landmarks
@@ -69,11 +79,11 @@ const FACE_TRIS = CMODEL_DELAUNAY._triangles;
  * @returns 
  */
 async function getFacialLandmarks(img) {
-    if (!modelsLoaded) {
+    if (!landmarkModelsLoaded) {
         progressBar.loadString = "Loading face model (this will take a moment the first time)";
         await faceapi.loadSsdMobilenetv1Model(MODEL_URL);
         await faceapi.loadFaceLandmarkModel(MODEL_URL);
-        modelsLoaded = true;
+        landmarkModelsLoaded = true;
     }
     progressBar.loadString = "Computing facial landmarks";
     let fullFaceDescriptions = await faceapi.detectAllFaces(img).withFaceLandmarks();
@@ -165,6 +175,18 @@ async function getFacialLandmarks(img) {
 	return coords;
 }
 
+/**
+ * Get the coordinates of the 3 points on a particular triangle in
+ * the facemodel
+ * @param {int} ti Triangle index
+ * @returns [a, b, c] on the triangle, as vec3 objects
+ */
+function getTri(ti) {
+    let a = [CMODEL[FACE_TRIS[ti*3]*2], CMODEL[FACE_TRIS[ti*3]*2+1], 0];
+    let b = [CMODEL[FACE_TRIS[ti*3+1]*2], CMODEL[FACE_TRIS[ti*3+1]*2+1], 0];
+    let c = [CMODEL[FACE_TRIS[ti*3+2]*2], CMODEL[FACE_TRIS[ti*3+2]*2+1], 0];
+    return [a, b, c];
+}
 
 /**
  * In the below: X refers to model, Y refers to new face image that's been inputted
@@ -187,7 +209,7 @@ async function getFacialLandmarks(img) {
  * @return {array} An Nx2 array with the new facial landmarks
  */
  function transferFacialExpression(epsilon, Y) {
-    //let tic = (new Date()).getTime();
+    let tic = (new Date()).getTime();
     // Step 1: Apply the coordinates to the model (coords = center + PCs*epsilon)
     let points1D = numeric.add(numeric.dot(FACE_EXPRESSIONS.PCs,epsilon), FACE_EXPRESSIONS.center);
     // Step 2: Unravel into 2D array
@@ -200,31 +222,56 @@ async function getFacialLandmarks(img) {
     // mean face, and compute barycentric coordinates
     let TIdx = [];
     let coords = [];
+    let touched = []; // Keep track of the last vertex that checked this triangle
+    for (let i = 0; i < FACE_TRIS.length/3; i++) {
+        touched.push(-1);
+    }
+    let foundLast = 0;
     for (let i = 0; i < XModelNew.length; i++) {
         TIdx.push(-1);
-        let ti = 0;
-        while(ti < FACE_TRIS.length && TIdx[i] == -1) {
-            let a = [CMODEL[FACE_TRIS[ti]*2], CMODEL[FACE_TRIS[ti]*2+1], 0];
-            let b = [CMODEL[FACE_TRIS[ti+1]*2], CMODEL[FACE_TRIS[ti+1]*2+1], 0];
-            let c = [CMODEL[FACE_TRIS[ti+2]*2], CMODEL[FACE_TRIS[ti+2]*2+1], 0];
-            let coordsi = getBarycentricCoords(a, b, c, XModelNew[i]);
+        // First check the adjacent triangles
+        let k = 0;
+        while(k < ADJACENT_TRIS[i].length && TIdx[i] == -1) {
+            let ti = ADJACENT_TRIS[i][k];
+            touched[ti] = i;
+            let abcd = getTri(ti);
+            abcd.push(XModelNew[i]);
+            let coordsi = getBarycentricCoords.apply(null, abcd);
             if (coordsi.length > 0) {
                 TIdx[i] = ti;
                 coords[i] = coordsi;
             }
-            ti += 3;
+            k++;
+        }
+        if (TIdx[i] == -1) {
+            foundLast++;
+            // Did not find in the adjacent triangles, so switch to 
+            // brute force (TODO: Could be improved with half-edge based
+            // breadth first search)
+            let ti = 0;
+            while(ti < FACE_TRIS.length/3 && TIdx[i] == -1) {
+                if (touched[ti] < i) {
+                    touched[ti] = i;
+                    let abcd = getTri(ti);
+                    abcd.push(XModelNew[i]);
+                    let coordsi = getBarycentricCoords.apply(null, abcd);
+                    if (coordsi.length > 0) {
+                        TIdx[i] = ti;
+                        coords[i] = coordsi;
+                    }
+                }
+                ti++;
+            }
         }
     }
-
-
     // Step 4: Transfer the barycentric coordinates to the new face
     let YNew = [];
     for (let i = 0; i < XModelNew.length; i++) {
         let ti = TIdx[i];
         let y = vec2.create();
-        let a = Y[FACE_TRIS[ti]];
-        let b = Y[FACE_TRIS[ti+1]];
-        let c = Y[FACE_TRIS[ti+2]];
+        let a = Y[FACE_TRIS[ti*3]];
+        let b = Y[FACE_TRIS[ti*3+1]];
+        let c = Y[FACE_TRIS[ti*3+2]];
         vec2.scaleAndAdd(y, y, a, coords[i][0]);
         vec2.scaleAndAdd(y, y, b, coords[i][1]);
         vec2.scaleAndAdd(y, y, c, coords[i][2]);
@@ -234,8 +281,8 @@ async function getFacialLandmarks(img) {
     for (let i = 0; i < 8; i++) {
         YNew.push(Y[Y.length-8+i]);
     }
-    //let toc = (new Date()).getTime();
-    //console.log("Elapsed time point location: ", toc-tic);
+    let toc = (new Date()).getTime();
+    //console.log("Elapsed time point location: ", toc-tic, ", foundLast = ", foundLast, "of", XModelNew.length);
     return YNew;
 }
 
