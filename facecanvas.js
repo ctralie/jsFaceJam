@@ -154,20 +154,25 @@ class FaceCanvas {
      * @param {2d array} points An array of points, each of which is a list [x, y]
      */
      setPoints(points) {
-        let that = this;
-        if (!('shaderReady' in this.shader)) {
-            this.shader.then(that.setPoints(points).bind(that));
+        if (!(points === undefined)) {
+            let that = this;
+            if (!('shaderReady' in this.shader)) {
+                this.shader.then(that.setPoints(points).bind(that));
+            }
+            else {
+                this.points = points;
+                const gl = this.gl;
+                this.updateVertexBuffer(points);
+                let textureCoords = new Float32Array(getTextureCoordinates(points));
+                gl.bindBuffer(gl.ARRAY_BUFFER, this.shader.textureCoordBuffer);
+                gl.bufferData(gl.ARRAY_BUFFER, textureCoords, gl.STATIC_DRAW);
+                if (this.active) {
+                    requestAnimationFrame(this.repaint.bind(this));
+                }
+            }
         }
         else {
-            this.points = points;
-            const gl = this.gl;
-            this.updateVertexBuffer(points);
-            let textureCoords = new Float32Array(getTextureCoordinates(points));
-            gl.bindBuffer(gl.ARRAY_BUFFER, this.shader.textureCoordBuffer);
-            gl.bufferData(gl.ARRAY_BUFFER, textureCoords, gl.STATIC_DRAW);
-            if (this.active) {
-                requestAnimationFrame(this.repaint.bind(this));
-            }
+            console.log("Warning: Undefined points");
         }
     }
 

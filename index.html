@@ -6,6 +6,7 @@
     <script src="libs/numeric-1.2.6.min.js"></script>
     <script src="libs/gl-matrix-min.js"></script>
     <script src="libs/delaunator.min.js"></script>
+    <script src="pca.js"></script>
     <script src="shaders.js"></script>
     <script src="texture.js"></script>
     <script src="expressionsmodel.js"></script>
@@ -60,7 +61,7 @@
     let progressBar = new ProgressBar();
 
 
-    var examplePictureMenu = document.getElementById("ExamplePictures");
+    let examplePictureMenu = document.getElementById("ExamplePictures");
     examplePictureMenu.addEventListener('change', function(e){
         let image = new Image();
         image.src = e.target.value;
@@ -72,12 +73,12 @@
 
     let imageInput = document.getElementById('imageInput');
     imageInput.addEventListener('change', function(e) {
-        var reader = new FileReader();
+        let reader = new FileReader();
         reader.onload = function(e) {
             let arrayBufferView = new Uint8Array(e.target.result);
-            var blob = new Blob([arrayBufferView], {type: imageInput.files[0].type});
-            var urlCreator = window.URL || window.webkitURL;
-            var imageUrl = urlCreator.createObjectURL(blob);
+            let blob = new Blob([arrayBufferView], {type: imageInput.files[0].type});
+            let urlCreator = window.URL || window.webkitURL;
+            let imageUrl = urlCreator.createObjectURL(blob);
             let image = new Image();
             image.src = imageUrl;
             console.log(e.target.result);
@@ -85,6 +86,7 @@
                 imageLoaded(image);
             }
         }
+        console.log(imageInput.files[0]);
         reader.readAsArrayBuffer(imageInput.files[0]);
         progressBar.startLoading();
     });
