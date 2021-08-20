@@ -68,8 +68,10 @@ class FaceCanvas {
         this.featureCoords = [];
         this.setupAudioHandlers();
 
-        this.energySlider = document.getElementById("energySlider");
-        this.energySlider.value = 20;
+        this.eyebrowEnergySlider = document.getElementById("eyebrowEnergySlider");
+        this.eyebrowEnergySlider.value = 20;
+        this.faceEnergySlider = document.getElementById("faceEnergySlider");
+        this.faceEnergySlider.value = 20;
         this.smoothnessSlider = document.getElementById("smoothnessSlider");
         this.smoothnessSlider.value = 100;
 
@@ -194,7 +196,7 @@ class FaceCanvas {
         const that = this;
         new Promise((resolve, reject) => {
             let worker = new Worker("audioworker.js");
-            let payload = {samples:that.audio.samples, sr:that.audio.sr, win:that.win, hop:that.hop};
+            let payload = {samples:that.audio.samples, sr:that.audio.sr, win:that.win, hop:that.hop, nfeatures:FACE_EXPRESSIONS.sv.length};
             worker.postMessage(payload);
             worker.onmessage = function(event) {
                 if (event.data.type == "newTask") {
@@ -332,11 +334,11 @@ class FaceCanvas {
                 let idx = Math.floor(time*this.audio.sr/this.hop);
                 if (idx < this.novfn.length) {
                     eyebrow = smoothness*this.beatRamp[idx] + (1-smoothness)*this.novfn[idx];
-                    eyebrow *= 0.25*this.energySlider.value;
+                    eyebrow *= 0.25*this.eyebrowEnergySlider.value;
                 }
                 if (idx < this.featureCoords.length) {
                     for (let i = 0; i < this.featureCoords[idx].length; i++) {
-                        epsilon[i] = this.energySlider.value*this.featureCoords[idx][i]*FACE_EXPRESSIONS.sv[i];
+                        epsilon[i] = 0.1*this.faceEnergySlider.value*this.featureCoords[idx][i]*FACE_EXPRESSIONS.sv[i];
                     }
                 }
             }
@@ -348,4 +350,3 @@ class FaceCanvas {
         }
     }
 }
-

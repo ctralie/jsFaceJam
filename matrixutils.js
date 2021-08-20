@@ -58,7 +58,6 @@ function getMeanCentered(X) {
         }
     }
     // Compute mean
-	console.log(N);
     for (let j = 0; j < X[0].length; j++) {
         let mean = 0;
         for (let i = 0; i < N; i++) {
