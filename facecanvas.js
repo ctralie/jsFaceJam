@@ -68,6 +68,7 @@ class FaceCanvas {
         this.setupAudioHandlers();
 
         this.energySlider = document.getElementById("energySlider");
+        this.energySlider.value = 20;
 
         this.time = 0.0;
         this.faceReady = false;
@@ -191,38 +192,34 @@ class FaceCanvas {
         const that = this;
         this.audio = audio;
         audio.connectAudioPlayer(this.audioPlayer);
-        audio.getSuperfluxNovfn(this.win, this.hop).then(novfn => {
-            // Step 1: Normalize the audio novelty function
-            let max = 0;
-            for (let i = 0; i < novfn.length; i++) {
-                max = Math.max(max, novfn[i]);
+        new Promise((resolve, reject) => {
+            let worker = new Worker("audioworker.js");
+            let payload = {samples:that.audio.samples, sr:that.audio.sr, win:that.win, hop:that.hop};
+            worker.postMessage(payload);
+            worker.onmessage = function(event) {
+                if (event.data.type == "newTask") {
+                    progressBar.loadString = event.data.taskString;
+                }
+                else if (event.data.type == "error") {
+                    that.progressBar.setLoadingFailed(event.data.taskString);
+                    reject();
+                }
+                else if (event.data.type == "debug") {
+                    console.log("Debug: " + event.data.taskString);
+                }
+                else if (event.data.type == "end") {
+                    that.novfn = event.data.novfn;
+                    that.featureCoords = event.data.Y;
+                    resolve();
+                }
             }
-            for (let i = 0; i < novfn.length; i++) {
-                novfn[i] /= max;
-            }
-            that.novfn = novfn;
-            // Step 2: Compute mel features
-            progressBar.loadString = "Computing Mel features";
-            const sr = that.audio.sr;
-            let win = Math.floor(Math.log2(sr/4));
-            win = Math.pow(2, win);
-            //let win = that.win*2;
-            audio.getSpectrogram(win, that.hop).then(S => {
-                let M = getMelFilterbank(win, sr, 80, Math.min(8000, sr/2), 100);
-                let X = numeric.dot(S, M);
-                X = doPCA(X, FACE_EXPRESSIONS.sv.length, 20);
-                let Y = getSTDevNorm(X);
-                console.log(Y);
-                that.featureCoords = Y;
-                that.audioReady = true;
-                progressBar.changeToReady();
-            }).catch(reason => {
-                progressBar.setLoadingFailed(reason);
-            });
+        }).then(() => {
+            progressBar.changeToReady();
+            that.audioReady = true
         }).catch(reason => {
             progressBar.setLoadingFailed(reason);
         });
-        progressBar.startLoading("Computing audio novelty function");
+        progressBar.startLoading();
     }
 
     updateTexture(texture) {
@@ -321,10 +318,10 @@ class FaceCanvas {
             let eyebrow = 0;
             if (this.audioReady && this.faceReady) {
                 let idx = Math.floor(time*this.audio.sr/this.hop);
-                /*if (idx < this.novfn.length) {
-                    eyebrow = this.novfn[idx]*20;
-                }*/
                 if (idx < this.novfn.length) {
+                    eyebrow = this.novfn[idx]*this.energySlider.value;
+                }
+                if (idx < this.featureCoords.length) {
                     for (let i = 0; i < this.featureCoords[idx].length; i++) {
                         epsilon[i] = this.energySlider.value*this.featureCoords[idx][i]*FACE_EXPRESSIONS.sv[i];
                     }
