@@ -27,8 +27,12 @@ onmessage = function(event) {
         for (let i = 0; i < novfn.length; i++) {
             novfn[i] /= max;
         }
+        // Step 2: Extract beats
+        postMessage({type:"newTask", taskString:"Finding beats"});
+        let beats = getBeats(novfn, sr, hop, 120, 100);
+        let beatRamp = getRampBeats(novfn, beats);
         
-        postMessage({type:"end", novfn:novfn, Y:[]});
+        postMessage({type:"end", novfn:novfn, beatRamp:beatRamp, Y:[]});
     }).catch(reason => {
         postMessage({type:"error", taskString:reason});
     });

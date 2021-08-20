@@ -64,11 +64,14 @@ class FaceCanvas {
         this.hop = hop;
         this.win = win;
         this.novfn = [];
+        this.beatRamp = [];
         this.featureCoords = [];
         this.setupAudioHandlers();
 
         this.energySlider = document.getElementById("energySlider");
         this.energySlider.value = 20;
+        this.smoothnessSlider = document.getElementById("smoothnessSlider");
+        this.smoothnessSlider.value = 100;
 
         this.time = 0.0;
         this.faceReady = false;
@@ -185,13 +188,10 @@ class FaceCanvas {
     }
 
     /**
-     * Connect audio to this face canvas and compute the features
-     * @param {SampledAudio} audio A SampledAudio object with loaded audio samples
+     * Compute all of the audio features used to animate the face
      */
-    connectAudio(audio) {
+    computeAudioFeatures() {
         const that = this;
-        this.audio = audio;
-        audio.connectAudioPlayer(this.audioPlayer);
         new Promise((resolve, reject) => {
             let worker = new Worker("audioworker.js");
             let payload = {samples:that.audio.samples, sr:that.audio.sr, win:that.win, hop:that.hop};
@@ -209,6 +209,7 @@ class FaceCanvas {
                 }
                 else if (event.data.type == "end") {
                     that.novfn = event.data.novfn;
+                    that.beatRamp = event.data.beatRamp;
                     that.featureCoords = event.data.Y;
                     resolve();
                 }
@@ -220,6 +221,16 @@ class FaceCanvas {
             progressBar.setLoadingFailed(reason);
         });
         progressBar.startLoading();
+    }
+
+    /**
+     * Connect audio to this face canvas and compute the features
+     * @param {SampledAudio} audio A SampledAudio object with loaded audio samples
+     */
+    connectAudio(audio) {
+        this.audio = audio;
+        audio.connectAudioPlayer(this.audioPlayer);
+        this.computeAudioFeatures();
     }
 
     updateTexture(texture) {
@@ -314,12 +325,14 @@ class FaceCanvas {
             // TODO (Later, for expression transfer): Store first frame of Parker's face,
             // then do point location, and map through Barycentric coordinates to the new
             // neutral face
+            let smoothness = that.smoothnessSlider.value/100;
             let epsilon = new Float32Array(FACE_EXPRESSIONS.sv.length);
             let eyebrow = 0;
             if (this.audioReady && this.faceReady) {
                 let idx = Math.floor(time*this.audio.sr/this.hop);
                 if (idx < this.novfn.length) {
-                    eyebrow = this.novfn[idx]*this.energySlider.value;
+                    eyebrow = smoothness*this.beatRamp[idx] + (1-smoothness)*this.novfn[idx];
+                    eyebrow *= 0.25*this.energySlider.value;
                 }
                 if (idx < this.featureCoords.length) {
                     for (let i = 0; i < this.featureCoords[idx].length; i++) {
