@@ -241,6 +241,7 @@ function getTri(ti) {
     }
     let foundLast = 0;
     for (let i = 0; i < XModelNew.length; i++) {
+        coords[i] = [1, 0, 0];
         TIdx.push(-1);
         // First check the adjacent triangles
         let k = 0;
