@@ -283,12 +283,17 @@ function getTri(ti) {
     for (let i = 0; i < XModelNew.length; i++) {
         let ti = TIdx[i];
         let y = vec2.create();
-        let a = Y[FACE_TRIS[ti*3]];
-        let b = Y[FACE_TRIS[ti*3+1]];
-        let c = Y[FACE_TRIS[ti*3+2]];
-        vec2.scaleAndAdd(y, y, a, coords[i][0]);
-        vec2.scaleAndAdd(y, y, b, coords[i][1]);
-        vec2.scaleAndAdd(y, y, c, coords[i][2]);
+        if (ti > -1) {
+            let a = Y[FACE_TRIS[ti*3]];
+            let b = Y[FACE_TRIS[ti*3+1]];
+            let c = Y[FACE_TRIS[ti*3+2]];
+            vec2.scaleAndAdd(y, y, a, coords[i][0]);
+            vec2.scaleAndAdd(y, y, b, coords[i][1]);
+            vec2.scaleAndAdd(y, y, c, coords[i][2]);
+        }
+        else {
+            y = Y[i];
+        }
         YNew.push(y);
     }
     // Append on the last 8 points for the bounding box of Y
