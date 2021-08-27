@@ -5,8 +5,7 @@
 const VIDEO_IMG_EXT = "jpeg";
 
 // https://semisignal.com/tag/ffmpeg-js/
-function convertDataURIToBinary(dataURI) {
-    let base64 = dataURI.replace(/^data[^,]+,/,'');
+function base64ToBinary(base64) {
     let raw = window.atob(base64);
     let rawLength = raw.length;
     let array = new Uint8Array(new ArrayBuffer(rawLength));
@@ -14,6 +13,10 @@ function convertDataURIToBinary(dataURI) {
         array[i] = raw.charCodeAt(i);
     }
     return array;
+}
+function convertDataURIToBinary(dataURI) {
+    let base64 = dataURI.replace(/^data[^,]+,/,'');
+    return base64ToBinary(base64);
 };
 
 function pad(n, width, z) {
@@ -112,7 +115,7 @@ class FaceCanvas {
         // Variables for capturing to a video
         this.capturing = false;
         this.capFrame = 0;
-        this.videoFs = 30;
+        this.videoFps = 20;
         this.frames = [];
 
 
@@ -361,11 +364,10 @@ class FaceCanvas {
      * it to the list fo frames
      */
     captureVideoFrame() {
-        const data = convertDataURIToBinary(this.canvas.toDataURL("image/"+VIDEO_IMG_EXT, 1));
         this.frames.push({
             name: `img${ pad( this.frames.length, 3 ) }.` + VIDEO_IMG_EXT,
-            data
-        })
+            data: convertDataURIToBinary(this.canvas.toDataURL("image/"+VIDEO_IMG_EXT, 1))
+        });
         this.capFrame += 1;
         requestAnimationFrame(this.repaint.bind(this));
     }
@@ -385,7 +387,7 @@ class FaceCanvas {
                 progressBar.changeMessage(msg.data);
             }
             else if (msg.type == "exit") {
-                progressBar.changeMessage("Process exited with code " + msg.data);
+                progressBar.setLoadingFailed("Process exited with code " + msg.data);
             }
             else if (msg.type == "done") {
                 const blob = new Blob([msg.data.MEMFS[0].data], {
@@ -400,16 +402,25 @@ class FaceCanvas {
                 progressBar.changeToReady("Successfully generated video");
             }
         };
-        // https://trac.ffmpeg.org/wiki/Slideshow
-        // https://semisignal.com/tag/ffmpeg-js/
-        let videoRes = parseInt(this.resolutionSlider.value);
+        // Setup audio blob
+        const audioArr = new Float32Array(this.audio.samples);
+        // Get WAV file bytes and audio params of your audio source
+        const wavBytes = getWavBytes(audioArr.buffer, {
+            isFloat: true,       // floating point or 16-bit integer
+            numChannels: 1,
+            sampleRate: this.audio.sr,
+        })
+        that.frames.push({name: "audio.wav", data: wavBytes});
+        // Call ffmpeg
+        let videoRes = parseInt(that.resolutionSlider.value);
         worker.postMessage({
             type: 'run',
             TOTAL_MEMORY: 256*1024*1024,
-            //arguments: 'ffmpeg -framerate 24 -i img%03d.jpeg output.mp4'.split(' '),
-            arguments: ["-r", ""+that.videoFs, "-i", "img%03d.jpeg", "-c:v", "libx264", "-crf", "1", "-vf", "scale="+videoRes+":"+videoRes, "-pix_fmt", "yuv420p", "-vb", "20M", "facejam.mp4"],
-            MEMFS: this.frames
-        });
+            arguments: ["-r", ""+that.videoFps, "-i", "img%03d.jpeg", "-c:v", "libx264", "-crf", "1", "-vf", "scale="+videoRes+":"+videoRes, "-pix_fmt", "yuv420p", "-vb", "20M", "facejam.mp4"],
+            MEMFS: that.frames
+        });        
+
+
     }
 
     repaint() {
@@ -429,7 +440,7 @@ class FaceCanvas {
         this.lastTime = this.thisTime;
         let time = this.audioPlayer.currentTime;
         if (this.capturing) {
-            time = this.capFrame/this.videoFs;
+            time = this.capFrame/this.videoFps;
         }
 
         // Step 2: Update the facial landmark positions according to the audio
@@ -473,7 +484,7 @@ class FaceCanvas {
             let duration = this.audioPlayer.duration;
             if (time < duration) {
                 let perc = Math.round(100*time/duration);
-                progressBar.changeMessage(perc + "% completed frames");
+                progressBar.changeMessage(perc + "% completed capturing frames");
                 this.captureVideoFrame();
             }
             else {
