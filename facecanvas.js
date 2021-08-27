@@ -2,6 +2,25 @@
  * Canvas for OpenGL Face Rendering
  */
 
+const VIDEO_IMG_EXT = "jpeg";
+
+// https://semisignal.com/tag/ffmpeg-js/
+function convertDataURIToBinary(dataURI) {
+    let base64 = dataURI.replace(/^data[^,]+,/,'');
+    let raw = window.atob(base64);
+    let rawLength = raw.length;
+    let array = new Uint8Array(new ArrayBuffer(rawLength));
+    for (i = 0; i < rawLength; i++) {
+        array[i] = raw.charCodeAt(i);
+    }
+    return array;
+};
+
+function pad(n, width, z) {
+    z = z || '0';
+    n = n + '';
+    return n.length >= width ? n : new Array(width - n.length + 1).join(z) + n;
+  }
 
 /**
  * Given a list of pixel locations on an image, transform them into texture coordinates
@@ -81,7 +100,19 @@ class FaceCanvas {
         this.lastTime = this.thisTime;
         this.time = 0;
         this.animating = false;
-        this.theta = 0;
+
+        // Variables for capturing to a video
+        this.capturing = false;
+        this.capFrame = 0;
+        this.videoFs = 30;
+        this.frames = [];
+        let offscreenCanvas = document.createElement("canvas");
+        offscreenCanvas.width = this.res;
+        offscreenCanvas.height = this.res;
+        let ctx = offscreenCanvas.getContext("2d");
+        this.offscreenCanvas = offscreenCanvas;
+        this.offscreenctx = ctx;
+
 
         this.active = false;
 
@@ -195,7 +226,7 @@ class FaceCanvas {
     computeAudioFeatures() {
         const that = this;
         new Promise((resolve, reject) => {
-            let worker = new Worker("audioworker.js");
+            const worker = new Worker("audioworker.js");
             let payload = {samples:that.audio.samples, sr:that.audio.sr, win:that.win, hop:that.hop, nfeatures:FACE_EXPRESSIONS.sv.length};
             worker.postMessage(payload);
             worker.onmessage = function(event) {
@@ -217,8 +248,13 @@ class FaceCanvas {
                 }
             }
         }).then(() => {
-            progressBar.changeToReady();
-            that.audioReady = true
+            if (this.faceReady) {
+                progressBar.changeToReady();
+            }
+            else {
+                progressBar.changeMessage("Finished audio, waiting for face");
+            }
+            that.audioReady = true;
         }).catch(reason => {
             progressBar.setLoadingFailed(reason);
         });
@@ -283,12 +319,93 @@ class FaceCanvas {
                     requestAnimationFrame(this.repaint.bind(this));
                 }
                 this.faceReady = true;
-                progressBar.changeToReady();
+                if (this.audioReady) {
+                    progressBar.changeToReady();
+                }
+                else if (progressBar.loading) {
+                    progressBar.changeMessage("Finished facial landmarks, waiting for audio");
+                }
             }
         }
         else {
             console.log("Warning: Undefined points");
         }
+    }
+
+    /**
+     * Begin the process of capturing the video frame by frame
+     */
+    startVideoCapture() {
+        if (!progressBar.loading) {
+            progressBar.startLoading("Saving video");
+        }
+        this.capturing = true;
+        this.capFrame = 0;
+        this.frames = [];
+        requestAnimationFrame(this.repaint.bind(this));
+    }
+
+    /**
+     * Stitch all of the images together into an mp4 video with an ffmpeg
+     * worker, add audio, and save as a download
+     * With help from
+     * https://gist.github.com/ilblog/5fa2914e0ad666bbb85745dbf4b3f106
+     */
+    finishVideoCapture() {      
+        let that = this;
+        const worker = new Worker('libs/ffmpeg-worker-mp4.js');
+        worker.onmessage = function(e) {
+            var msg = e.data;
+            if (msg.type == "stderr") {
+                progressBar.setLoadingFailed(msg.data);
+            }
+            else if (msg.type == "exit") {
+                progressBar.setLoadingFailed("Process exited with code " + msg.data);
+            }
+            else if (msg.type == "done") {
+                const blob = new Blob([msg.data.MEMFS[0].data], {
+                    type: "video/mp4"
+                });
+                const a = document.createElement('a');
+                a.href = window.URL.createObjectURL(blob);
+                a.style.display = 'none';
+                a.download = 'facejam.mp4';
+                document.body.appendChild(a);
+                a.click();
+            }
+        };
+        // https://trac.ffmpeg.org/wiki/Slideshow
+        // https://semisignal.com/tag/ffmpeg-js/
+        worker.postMessage({
+            type: 'run',
+            TOTAL_MEMORY: 256*1024*1024,
+            //arguments: 'ffmpeg -framerate 24 -i img%03d.jpeg output.mp4'.split(' '),
+            arguments: ["-r", ""+that.videoFs, "-i", "img%03d.jpeg", "-c:v", "libx264", "-crf", "1", "-vf", "scale=150:150", "-pix_fmt", "yuv420p", "-vb", "20M", "out.mp4"],
+            //arguments: '-r 60 -i img%03d.jpeg -c:v libx264 -crf 1 -vf -pix_fmt yuv420p -vb 20M out.mp4'.split(' '),
+            MEMFS: this.frames
+        });
+    }
+
+    /**
+     * Capture and watermark the current state of the gl canvas and add
+     * it to the list fo frames
+     */
+    captureFrame() {
+        console.log("Capturing frame " + this.capFrame);
+        const ctx = this.offscreenctx;
+        ctx.clearRect(0, 0, this.res, this.res);
+        const img = new Image();
+        img.src = this.canvas.toDataURL();
+        ctx.drawImage(img, 0, 0);
+        ctx.strokeText("facejam.app", 10, 10); // Watermark
+        let imgStr = this.offscreenCanvas.toDataURL("image/"+VIDEO_IMG_EXT, 1);
+        let data = convertDataURIToBinary(imgStr);
+        this.frames.push({
+            name: `img${ pad( this.frames.length, 3 ) }.` + VIDEO_IMG_EXT,
+            data
+        })
+        this.capFrame += 1;
+        requestAnimationFrame(this.repaint.bind(this));
     }
 
     repaint() {
@@ -302,27 +419,16 @@ class FaceCanvas {
         if (this.texture == null) {
             return;
         }
-        const gl = this.gl;
-        gl.useProgram(shader);
-
-        // Set the time
+        // Step 1: Set the time
         this.thisTime = (new Date()).getTime();
         this.time += (this.thisTime - this.lastTime)/1000.0;
-        this.theta += 10*(this.thisTime - this.lastTime)/1000.0;
         this.lastTime = this.thisTime;
-        gl.uniform1f(shader.uTimeUniform, this.time);
-
-        // Set active texture
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, this.texture);
-        gl.uniform1i(shader.uSampler, 0);
-
-        // Bind vertex, texture and index buffers to draw two triangles
-        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, shader.indexBuffer);
-        gl.drawElements(gl.TRIANGLES, shader.indexBuffer.numItems, gl.UNSIGNED_SHORT, 0);
-
-        // Keep the animation loop going
         let time = this.audioPlayer.currentTime;
+        if (this.capturing) {
+            time = this.capFrame/this.videoFs;
+        }
+
+        // Step 2: Update the facial landmark positions according to the audio
         if (this.active && this.points.length > 0) {
             // TODO (Later, for expression transfer): Store first frame of Parker's face,
             // then do point location, and map through Barycentric coordinates to the new
@@ -345,7 +451,34 @@ class FaceCanvas {
             let points = transferFacialExpression(epsilon, this.points, eyebrow);
             this.updateVertexBuffer(points);
         }
-        if (this.animating) {
+
+        // Step 3: Finally, draw the frame
+        const gl = this.gl;
+        gl.useProgram(shader);
+        gl.uniform1f(shader.uTimeUniform, this.time);
+
+        // Set active texture
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, this.texture);
+        gl.uniform1i(shader.uSampler, 0);
+
+        // Bind vertex, texture and index buffers to draw two triangles
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, shader.indexBuffer);
+        gl.drawElements(gl.TRIANGLES, shader.indexBuffer.numItems, gl.UNSIGNED_SHORT, 0);
+        if (this.capturing) {
+            let duration = this.audioPlayer.duration;
+            if (time < duration) {
+                let perc = Math.round(100*time/duration);
+                progressBar.changeMessage(perc + "% completed frames");
+                this.captureFrame();
+            }
+            else {
+                this.capturing = false;
+                progressBar.changeMessage("Assembling video");
+                this.finishVideoCapture();
+            }
+        }
+        else if (this.animating) {
             requestAnimationFrame(this.repaint.bind(this));
         }
     }

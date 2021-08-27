@@ -1,4 +1,9 @@
 /** The file that puts everything together for running */
+(function() {
+    var requestAnimationFrame = window.requestAnimationFrame || window.mozRequestAnimationFrame ||
+                                window.webkitRequestAnimationFrame || window.msRequestAnimationFrame;
+    window.requestAnimationFrame = requestAnimationFrame;
+  })();
 
 let faceCanvas = new FaceCanvas();
 faceCanvas.setActive();
@@ -65,3 +70,10 @@ tuneInput.addEventListener('change', function(e) {
     progressBar.loadString = "Loading audio";
     progressBar.startLoading();
 });
+
+/********************************************************
+ *                  OTHER BUTTONS                       *
+ ********************************************************/
+function downloadVideo() {
+    faceCanvas.startVideoCapture();
+}

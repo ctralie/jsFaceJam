@@ -19,6 +19,10 @@ function ProgressBar() {
         this.loading = true;
         this.changeLoad();
     }
+    this.changeMessage = function(message) {
+        this.loadString = message;
+        this.waitingDisp.innerHTML = "<h3><font color = \"" + this.loadColor + "\">" + this.loadString;
+    }
     this.changeLoad = function() {
         if (!this.loading) {
             return;
