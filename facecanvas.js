@@ -61,6 +61,7 @@ class FaceCanvas {
      * @param {int} win Window length for audio features (default 2048)
      */
     constructor(hop, win) {
+        const that = this;
         let canvas = document.getElementById('FaceCanvas');
         this.res = Math.floor(0.8*Math.min(window.innerWidth, window.innerHeight));
         canvas.width = this.res;
@@ -93,6 +94,13 @@ class FaceCanvas {
         this.faceEnergySlider.value = 20;
         this.smoothnessSlider = document.getElementById("smoothnessSlider");
         this.smoothnessSlider.value = 100;
+        this.resolutionSlider = document.getElementById("resolutionSlider");
+        this.resolutionSlider.value = 256;
+        this.resolutionSlider.onchange = function() {
+            let val = that.resolutionSlider.value;
+            document.getElementById("resolutionSliderLabel").innerHTML = "Download Resolution " + val + "x" + val + " (larger will take longer)";
+        }
+        this.resolutionSlider.onchange();
 
         this.time = 0.0;
         this.faceReady = false;
@@ -106,12 +114,6 @@ class FaceCanvas {
         this.capFrame = 0;
         this.videoFs = 30;
         this.frames = [];
-        let offscreenCanvas = document.createElement("canvas");
-        offscreenCanvas.width = this.res;
-        offscreenCanvas.height = this.res;
-        let ctx = offscreenCanvas.getContext("2d");
-        this.offscreenCanvas = offscreenCanvas;
-        this.offscreenctx = ctx;
 
 
         this.active = false;
@@ -336,12 +338,35 @@ class FaceCanvas {
      * Begin the process of capturing the video frame by frame
      */
     startVideoCapture() {
-        if (!progressBar.loading) {
-            progressBar.startLoading("Saving video");
+        if (!this.faceReady) {
+            progressBar.setLoadingFailed("Need to select face image first!");
         }
-        this.capturing = true;
-        this.capFrame = 0;
-        this.frames = [];
+        else if (!this.audioReady) {
+            progressBar.setLoadingFailed("Need to select tune first!");
+        }
+        else {
+            if (!progressBar.loading) {
+                progressBar.startLoading("Saving video");
+            }
+            this.capturing = true;
+            this.capFrame = 0;
+            this.frames = [];
+            requestAnimationFrame(this.repaint.bind(this));
+        }
+    }
+
+
+    /**
+     * Capture and watermark the current state of the gl canvas and add
+     * it to the list fo frames
+     */
+    captureVideoFrame() {
+        const data = convertDataURIToBinary(this.canvas.toDataURL("image/"+VIDEO_IMG_EXT, 1));
+        this.frames.push({
+            name: `img${ pad( this.frames.length, 3 ) }.` + VIDEO_IMG_EXT,
+            data
+        })
+        this.capFrame += 1;
         requestAnimationFrame(this.repaint.bind(this));
     }
 
@@ -357,10 +382,10 @@ class FaceCanvas {
         worker.onmessage = function(e) {
             var msg = e.data;
             if (msg.type == "stderr") {
-                progressBar.setLoadingFailed(msg.data);
+                progressBar.changeMessage(msg.data);
             }
             else if (msg.type == "exit") {
-                progressBar.setLoadingFailed("Process exited with code " + msg.data);
+                progressBar.changeMessage("Process exited with code " + msg.data);
             }
             else if (msg.type == "done") {
                 const blob = new Blob([msg.data.MEMFS[0].data], {
@@ -372,40 +397,19 @@ class FaceCanvas {
                 a.download = 'facejam.mp4';
                 document.body.appendChild(a);
                 a.click();
+                progressBar.changeToReady("Successfully generated video");
             }
         };
         // https://trac.ffmpeg.org/wiki/Slideshow
         // https://semisignal.com/tag/ffmpeg-js/
+        let videoRes = parseInt(this.resolutionSlider.value);
         worker.postMessage({
             type: 'run',
             TOTAL_MEMORY: 256*1024*1024,
             //arguments: 'ffmpeg -framerate 24 -i img%03d.jpeg output.mp4'.split(' '),
-            arguments: ["-r", ""+that.videoFs, "-i", "img%03d.jpeg", "-c:v", "libx264", "-crf", "1", "-vf", "scale=150:150", "-pix_fmt", "yuv420p", "-vb", "20M", "out.mp4"],
-            //arguments: '-r 60 -i img%03d.jpeg -c:v libx264 -crf 1 -vf -pix_fmt yuv420p -vb 20M out.mp4'.split(' '),
+            arguments: ["-r", ""+that.videoFs, "-i", "img%03d.jpeg", "-c:v", "libx264", "-crf", "1", "-vf", "scale="+videoRes+":"+videoRes, "-pix_fmt", "yuv420p", "-vb", "20M", "facejam.mp4"],
             MEMFS: this.frames
         });
-    }
-
-    /**
-     * Capture and watermark the current state of the gl canvas and add
-     * it to the list fo frames
-     */
-    captureFrame() {
-        console.log("Capturing frame " + this.capFrame);
-        const ctx = this.offscreenctx;
-        ctx.clearRect(0, 0, this.res, this.res);
-        const img = new Image();
-        img.src = this.canvas.toDataURL();
-        ctx.drawImage(img, 0, 0);
-        ctx.strokeText("facejam.app", 10, 10); // Watermark
-        let imgStr = this.offscreenCanvas.toDataURL("image/"+VIDEO_IMG_EXT, 1);
-        let data = convertDataURIToBinary(imgStr);
-        this.frames.push({
-            name: `img${ pad( this.frames.length, 3 ) }.` + VIDEO_IMG_EXT,
-            data
-        })
-        this.capFrame += 1;
-        requestAnimationFrame(this.repaint.bind(this));
     }
 
     repaint() {
@@ -470,7 +474,7 @@ class FaceCanvas {
             if (time < duration) {
                 let perc = Math.round(100*time/duration);
                 progressBar.changeMessage(perc + "% completed frames");
-                this.captureFrame();
+                this.captureVideoFrame();
             }
             else {
                 this.capturing = false;
