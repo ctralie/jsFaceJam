@@ -307,6 +307,32 @@ function getTri(ti) {
 
 
 /**
+ * Use an offscreen canvas to draw this image to a square region with a watermark
+ * @param {Image} image A Javascript image handle
+ */
+function makeWatermark(image) {
+    let offscreenCanvas = document.createElement("canvas");
+    let res = Math.max(image.width, image.height);
+    let dw = image.width/res;
+    let dh = image.height/res;
+    res = Math.min(1024, res);
+    offscreenCanvas.width = res;
+    offscreenCanvas.height = res;
+    let ctx = offscreenCanvas.getContext("2d");
+    ctx.clearRect(0, 0, res, res);
+    ctx.drawImage(image, 0, 0, image.width, image.height, 0, 0, res*dw, res*dh);
+    ctx.font = Math.round(30*res/512)+"px Arial";
+    ctx.strokeText("facejam.app", 20*res/512, 20*res/512);
+
+    let squareImg = new Image();
+    squareImg.src = offscreenCanvas.toDataURL();
+    squareImg.onload = function() {
+        let texture = loadTexture(faceCanvas.gl, squareImg);
+        faceCanvas.updateWTexture(texture);
+    }
+}
+
+/**
  * Callback once a square version of an image has been drawn, with padding
  * @param {Image} image A Javascript handle to a square image
  */
@@ -340,4 +366,5 @@ function imageLoaded(image) {
     squareImg.onload = function() {
         squareImageDrawn(squareImg);
     }
+    makeWatermark(image);
 }

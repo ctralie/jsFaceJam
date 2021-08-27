@@ -74,6 +74,7 @@ class FaceCanvas {
         this.canvas = canvas;
         this.shader = null;
         this.texture = null;
+        this.wtexture = null;
 
         this.audio = null; // SampledAudio object
         this.audioPlayer = document.getElementById("audioPlayer");
@@ -280,6 +281,10 @@ class FaceCanvas {
         this.texture = texture;
     }
 
+    updateWTexture(wtexture) {
+        this.wtexture = wtexture;
+    }
+
     /**
      * Update the vertex buffer with a new set of points, but do not
      * update the texture coordinate buffer.  This can be used to move
@@ -413,6 +418,7 @@ class FaceCanvas {
         that.frames.push({name: "audio.wav", data: wavBytes});
         // Call ffmpeg
         let videoRes = parseInt(that.resolutionSlider.value);
+        //", drawtext=fontfile=assets/fonts/Ubuntu-Italic.ttf:text='facejam.app':fontcolor=white:fontsize=12:box=1:boxcolor=black@0.5:boxborderw=5:x=0:y=0"
         worker.postMessage({
             type: 'run',
             TOTAL_MEMORY: 256*1024*1024,
@@ -474,7 +480,12 @@ class FaceCanvas {
 
         // Set active texture
         gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, this.texture);
+        if (this.capturing) {
+            gl.bindTexture(gl.TEXTURE_2D, this.wtexture);
+        }
+        else {
+            gl.bindTexture(gl.TEXTURE_2D, this.texture);
+        }
         gl.uniform1i(shader.uSampler, 0);
 
         // Bind vertex, texture and index buffers to draw two triangles
