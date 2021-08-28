@@ -414,11 +414,13 @@ class FaceCanvas {
                 });
                 const a = document.createElement('a');
                 a.href = window.URL.createObjectURL(blob);
-                a.style.display = 'none';
+                a.innerHTML = "Click here to download generated video";
                 a.download = 'facejam.mp4';
-                document.body.appendChild(a);
-                a.click();
                 progressBar.changeToReady("Successfully generated video");
+                const downloadArea = document.getElementById("downloadLink");
+                downloadArea.innerHTML = "";
+                downloadArea.appendChild(a);
+                a.click();
             }
         };
         // Setup audio blob
