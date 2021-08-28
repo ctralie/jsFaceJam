@@ -322,7 +322,7 @@ function makeWatermark(image) {
     ctx.clearRect(0, 0, res, res);
     ctx.drawImage(image, 0, 0, image.width, image.height, 0, 0, res*dw, res*dh);
     ctx.font = Math.round(30*res/512)+"px Arial";
-    ctx.strokeText("facejam.app", 20*res/512, 20*res/512);
+    ctx.strokeText("facejam.app", 20*res/512, 30*res/512);
 
     let squareImg = new Image();
     squareImg.src = offscreenCanvas.toDataURL();

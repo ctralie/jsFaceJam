@@ -73,8 +73,8 @@ class FaceCanvas {
         canvas.addEventListener("contextmenu", function(e){ e.stopPropagation(); e.preventDefault(); return false; }); 
         this.canvas = canvas;
         this.shader = null;
-        this.texture = null;
-        this.wtexture = null;
+        this.texture = null; // Regular texture
+        this.wtexture = null; // Watermarked texture
 
         this.audio = null; // SampledAudio object
         this.audioPlayer = document.getElementById("audioPlayer");
@@ -102,9 +102,21 @@ class FaceCanvas {
         this.resolutionSlider.value = 256;
         this.resolutionSlider.onchange = function() {
             let val = that.resolutionSlider.value;
-            document.getElementById("resolutionSliderLabel").innerHTML = "Download Resolution " + val + "x" + val + " (larger will take longer)";
+            // Round to nearest power of 2
+            val = Math.round(Math.log(val)/Math.log(2));
+            val = Math.pow(2, val);
+            that.resolutionSlider.value = val;
+            document.getElementById("resolutionSliderLabel").innerHTML = "Download Resolution " + val + "x" + val;
         }
         this.resolutionSlider.onchange();
+        this.fpsSlider = document.getElementById("fpsSlider");
+        this.fpsSlider.value = 15;
+        this.fpsSlider.onchange = function() {
+            let val = that.fpsSlider.value;
+            document.getElementById("fpsSliderLabel").innerHTML = "Download fps " + val;
+        }
+        this.fpsSlider.onchange();
+
 
         this.time = 0.0;
         this.faceReady = false;
@@ -116,7 +128,6 @@ class FaceCanvas {
         // Variables for capturing to a video
         this.capturing = false;
         this.capFrame = 0;
-        this.videoFps = 20;
         this.frames = [];
 
 
@@ -369,9 +380,11 @@ class FaceCanvas {
      * it to the list fo frames
      */
     captureVideoFrame() {
+        const data = convertDataURIToBinary(this.canvas.toDataURL("image/"+VIDEO_IMG_EXT, 1));
+        const name = `img${ pad( this.frames.length, 3 ) }.` + VIDEO_IMG_EXT;
         this.frames.push({
-            name: `img${ pad( this.frames.length, 3 ) }.` + VIDEO_IMG_EXT,
-            data: convertDataURIToBinary(this.canvas.toDataURL("image/"+VIDEO_IMG_EXT, 1))
+            name: name,
+            data: data
         });
         this.capFrame += 1;
         requestAnimationFrame(this.repaint.bind(this));
@@ -395,6 +408,7 @@ class FaceCanvas {
                 progressBar.setLoadingFailed("Process exited with code " + msg.data);
             }
             else if (msg.type == "done") {
+                console.log(msg);
                 const blob = new Blob([msg.data.MEMFS[0].data], {
                     type: "video/mp4"
                 });
@@ -408,21 +422,15 @@ class FaceCanvas {
             }
         };
         // Setup audio blob
-        const audioArr = new Float32Array(this.audio.samples);
-        // Get WAV file bytes and audio params of your audio source
-        const wavBytes = getWavBytes(audioArr.buffer, {
-            isFloat: true,       // floating point or 16-bit integer
-            numChannels: 1,
-            sampleRate: this.audio.sr,
-        })
-        that.frames.push({name: "audio.wav", data: wavBytes});
+        let mp3bytes = getMP3Binary(this.audio.samples, this.audio.sr);
+        that.frames.push({name: "audio.mp3", data: mp3bytes});
+        console.log(that.frames);
         // Call ffmpeg
         let videoRes = parseInt(that.resolutionSlider.value);
-        //", drawtext=fontfile=assets/fonts/Ubuntu-Italic.ttf:text='facejam.app':fontcolor=white:fontsize=12:box=1:boxcolor=black@0.5:boxborderw=5:x=0:y=0"
         worker.postMessage({
             type: 'run',
             TOTAL_MEMORY: 256*1024*1024,
-            arguments: ["-r", ""+that.videoFps, "-i", "img%03d.jpeg", "-c:v", "libx264", "-crf", "1", "-vf", "scale="+videoRes+":"+videoRes, "-pix_fmt", "yuv420p", "-vb", "20M", "facejam.mp4"],
+            arguments: ["-i", "audio.mp3", "-r", ""+that.fpsSlider.value, "-i", "img%03d.jpeg", "-c:v", "libx264", "-crf", "1", "-vf", "scale="+videoRes+":"+videoRes, "-pix_fmt", "yuv420p", "-vb", "20M", "facejam.mp4"],
             MEMFS: that.frames
         });        
 
@@ -446,7 +454,8 @@ class FaceCanvas {
         this.lastTime = this.thisTime;
         let time = this.audioPlayer.currentTime;
         if (this.capturing) {
-            time = this.capFrame/this.videoFps;
+            let videoFps = parseInt(this.fpsSlider.value);
+            time = this.capFrame/videoFps;
         }
 
         // Step 2: Update the facial landmark positions according to the audio

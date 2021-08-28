@@ -9,6 +9,7 @@
     
     <script src="jsanov/libs/fft.min.js"></script>
     <script src="jsanov/libs/jquery.ajax.arraybuffer.min.js"></script>
+    <script src="jsanov/libs/lame.min.js"></script>
     <script src="jsanov/wav.js"></script>
     <script src="jsanov/features.js"></script>
     <script src="jsanov/audio.js"></script>
@@ -85,8 +86,12 @@
                 <button id = "download" onclick="downloadVideo()">Download Video</button>
             </td>
             <td>
-                <input type="range" min="64" max="512" value="256" class="slider" id="resolutionSlider">
+                <input type="range" min="64" max="512" class="slider" id="resolutionSlider">
                 <label for="resolutionSlider" id="resolutionSliderLabel"></label>
+            </td>
+            <td>
+                <input type="range" min="2" max="30" class="slider" id="fpsSlider">
+                <label for="fpsSlider" id="fpsSliderLabel"></label>
             </td>
         </tr>
         <tr>
