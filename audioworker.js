@@ -28,11 +28,15 @@ onmessage = function(event) {
         for (let i = 0; i < novfn.length; i++) {
             novfn[i] /= max;
         }
-        // Step 2: Extract beats
+        // Step 2: Estimate tempo
+        postMessage({type:"newTask", taskString:"Estimating tempo"});
+        let tempoInfo = getACDFDFTTempo(novfn, hop, sr);
+
+        // Step 3: Extract beats
         postMessage({type:"newTask", taskString:"Finding beats"});
-        let beats = getBeats(novfn, sr, hop, 120, 1);
+        let beats = getBeats(novfn, sr, hop, tempoInfo.maxBpm, 1);
         let beatRamp = getRampBeats(novfn, beats);
-        // Step 3: Compute other types of features
+        // Step 4: Compute other types of features
         postMessage({type:"newTask", taskString:"Computing spectrogram features"});
         let Y = [];
         // Allocate space for features
@@ -51,11 +55,11 @@ onmessage = function(event) {
         for (let i = 0; i < novfn.length; i++) {
             Y[i][2] = roloff[i];
         }
-        // Step 4: Normalize features
+        // Step 5: Normalize features
         postMessage({type:"newTask", taskString:"Normalizing Features"});
         Y = getSTDevNorm(Y);
 
-        postMessage({type:"end", novfn:novfn, beatRamp:beatRamp, Y:Y});
+        postMessage({type:"end", novfn:novfn, beatRamp:beatRamp, Y:Y, tempoInfo:tempoInfo});
 
     }).catch(reason => {
         postMessage({type:"error", taskString:reason});
