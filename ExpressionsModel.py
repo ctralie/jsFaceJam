@@ -1,19 +1,13 @@
 """
-Some code from Chris Tralie's original FaceJam to compute
-PCA of facial landmarks after doing Procrustes alignment
+Code to stabilize facial landmarks and extract particular expressions
 """
 
 import numpy as np
-from scipy.spatial import tsearch
-from sklearn.decomposition import PCA
-import scipy.misc
 import scipy.io as sio
 import matplotlib.pyplot as plt
-import matplotlib.image as mpimage
-import os
-import imageio
+from scipy.ndimage import median_filter
+from skimage import io
 import json
-import subprocess
 
 def getProcrustesAlignment(X, Y, idx):
     """
@@ -50,20 +44,20 @@ def getProcrustesAlignment(X, Y, idx):
     return (Cx, Cy, R)    
 
 
-def getFaceModel(n_components=10, stabilize = False, doPlot = False):
+def getFaceModel(stabilize = False, doPlot = False):
     """
     Do Procrustes alignment on all of the frames to align them
-    to the first frame, and do PCA down to some number
+    to the first frame, and pull out a few specific expressions
     Parameters
     ----------
-    n_components: int
-        Number of principal components to compute
     stabilize: boolean
         Whether to apply rigid Procrustes stabilization
+    doPlot: boolean
+        Whether to plot the landmarks to show stabilization
     """
     allkeypts = sio.loadmat("frames/allkeypts.mat")["X"]
-    print(allkeypts.shape)
     allkeypts = allkeypts[:, 0:-8, :] # Discard the bounding boxes
+    afterprocrustes = np.zeros_like(allkeypts)
     
     ## Step 1: Do procrustes to align all frames to first frame
     if stabilize:
@@ -75,78 +69,63 @@ def getFaceModel(n_components=10, stabilize = False, doPlot = False):
             XNew = R.dot(XNew)
             XNew += Cy
             XNew[:, -4::] = Y[:, -4::]
-            allkeypts[i, :, :] = XNew.T
+            afterprocrustes[i, :, :] = XNew.T
+    aftermedian = np.zeros_like(afterprocrustes)
+    for k in range(2):
+        aftermedian[:, :, k] = median_filter(afterprocrustes[:, :, k], size=(8, 1))
     
-    ## Step 2: Now do PCA on the keypoints
-    X = np.reshape(allkeypts, (allkeypts.shape[0], allkeypts.shape[1]*allkeypts.shape[2]))
-    XC = np.mean(X, 0)[None, :]
-    X -= XC
-    pca = PCA(n_components=n_components)
-    pca.fit(X)
-    P = pca.components_.T
-    sv = np.sqrt(pca.singular_values_)
-    
-    return {'center':XC.flatten(), "PCs":P, "sv":sv, "allkeypts":allkeypts}
-
-def plotPCs(res, N):
-    """
-    Plot principal components as scatterplots
-    """
-    XC, P, sv, allkeypts = res["center"], res["PCs"], res["sv"], res["allkeypts"]
-    k = int(np.ceil(np.sqrt(N+1)))
-    plt.figure(figsize=(20, 20))
-    plt.subplot(k, k, 1)
-    plt.stem(sv)
-    plt.title("Principal Component Standard Deviation")
-    for i in range(N):
-        Y = XC + sv[i]*P[:, i]
-        XKey2 = np.reshape(Y, (allkeypts.shape[1], allkeypts.shape[2]))
-        plt.subplot(k, k, i+2)
-        plt.scatter(XKey2[:, 0], -XKey2[:, 1])
-        plt.axis('equal')
-        plt.title("Principal Component %i"%i)
-    plt.savefig("principalaxes.png", bbox_inches='tight')
-
-def makeEllipse(res, k1 = 0, k2 = 1):
-    """
-    Trace out an ellipse in the space of principal components
-    """
-    XC, P, sv = res["center"], res["PCs"], res["sv"]
-    NEllipse = 100
-    t = np.linspace(0, 2*np.pi, NEllipse+1)[0:NEllipse]
-    Y = np.zeros((P.shape[0], NEllipse))
-    p1 = P[:, k1]
-    p2 = P[:, k2]
-    Y = XC[:, None] + sv[0]*p1[:, None]*np.cos(t[None, :]) + sv[1]*p2[:, None]*np.sin(t[None, :])
-    Y = np.reshape(Y, (int(Y.shape[0]/2), 2, Y.shape[1]))
-    Y[:, 1, :] = np.max(Y[:, 1, :]) - Y[:, 1, :]
-    xmin = np.min(Y[:, 0, :])
-    xmax = np.max(Y[:, 0, :])
-    ymin = np.min(Y[:, 1, :])
-    ymax = np.max(Y[:, 1, :])
-    dx = xmax-xmin
-    dy = ymax-ymin
-    xmin -= 0.1*dx
-    xmax += 0.1*dx
-    ymin -= 0.1*dy
-    ymax += 0.1*dy
-    for i in range(Y.shape[2]):
-        plt.clf()
-        y = Y[:, :, i]
-        plt.scatter(y[:, 0], y[:, 1])
-        plt.xlim([xmin, xmax])
-        plt.ylim([ymin, ymax])
-        plt.axis('off')
-        plt.savefig("Ellipse%i.png"%i, bbox_inches='tight')
-
-if __name__ == '__main__':
-    res = getFaceModel()
-    #plotPCs(res, 10)
-    #makeEllipse(res, 3, 4)
-    res.pop('allkeypts')
-
-    fout = open("ExpressionsModel.json", "w")
-    for key in res:
-        res[key] = res[key].tolist()
-    fout.write(json.dumps(res))
+    expressions = {"happy":[80, 150], "surprised":[190, 270], "angry":[304, 340], "confused":[440, 470]}
+    for key in expressions:
+        value = []
+        for i in range(expressions[key][0], expressions[key][1]+1):
+            X = aftermedian[i, :, :]
+            value.append(np.round(X, decimals=1).tolist())
+        expressions[key] = value
+    fout = open("expressions.json", "w")
+    fout.write(json.dumps(expressions))
     fout.close()
+    
+    if doPlot:
+        xlim = [np.min(allkeypts[:, :, 0]), np.max(allkeypts[:, :, 0])]
+        ylim = [np.min(allkeypts[:, :, 1]), np.max(allkeypts[:, :, 1])]
+        plt.figure(figsize=(10, 10))
+        for expression in ["surprised"]:
+            [i1, i2] = expressions[expression]
+            for i, idx in enumerate(range(i1, i2+1)):
+                plt.clf()
+                plt.subplot(221)
+                X = allkeypts[idx, :, :]
+                I = io.imread("frames/orig/{}.png".format(idx))
+                plt.imshow(I)
+                plt.scatter(X[:, 0], X[:, 1], 2)
+                plt.axis("off")
+
+                plt.subplot(222)
+                plt.scatter(X[:, 0], X[:, 1])
+                plt.xlim(xlim)
+                plt.ylim(ylim)
+                plt.gca().invert_yaxis()
+                plt.axis("off")
+                plt.title("Original Landmarks")
+
+                plt.subplot(223)
+                X = afterprocrustes[idx, :, :]
+                plt.scatter(X[:, 0], X[:, 1])
+                plt.xlim(xlim)
+                plt.ylim(ylim)
+                plt.gca().invert_yaxis()
+                plt.axis("off")
+                plt.title("Procrustes Aligned Landmarks")
+
+                plt.subplot(224)
+                X = aftermedian[idx, :, :]
+                plt.scatter(X[:, 0], X[:, 1])
+                plt.xlim(xlim)
+                plt.ylim(ylim)
+                plt.gca().invert_yaxis()
+                plt.axis("off")
+                plt.title("Median Smoothed Landmarks")
+
+                plt.savefig("frames/{}_{}.png".format(expression, i), bbox_inches='tight')
+
+getFaceModel(stabilize=True)

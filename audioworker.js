@@ -14,7 +14,6 @@ onmessage = function(event) {
     let win = event.data.win;
     let hop = event.data.hop;
     let sr = event.data.sr;
-    let nfeatures = event.data.nfeatures;
     postMessage({type:"newTask", taskString:"Computing audio novelty function"});
     getSuperfluxNovfn(samples, sr, win, hop).then(result => {
         let S = result.S;
@@ -36,30 +35,21 @@ onmessage = function(event) {
         postMessage({type:"newTask", taskString:"Finding beats"});
         let beats = getBeats(novfn, sr, hop, tempoInfo.maxBpm, 1);
         let beatRamp = getRampBeats(novfn, beats);
-        // Step 4: Compute other types of features
-        postMessage({type:"newTask", taskString:"Computing spectrogram features"});
-        let Y = [];
-        // Allocate space for features
-        for (let i = 0; i < novfn.length; i++) {
-            Y.push(new Float32Array(nfeatures));
-            // First feature is spectral flux
-            Y[i][0] = novfn[i];
+        
+        // Step 4: Extract energy
+        postMessage({type:"newTask", taskString:"Computing energy"});
+        let activation = getSpectrogramPower(S);
+        max = 0;
+        for (let i = 0; i < activation.length; i++) {
+            if (activation[i] > max) {
+                max = activation[i];
+            }
         }
-        postMessage({type:"newTask", taskString:"Computing spectral centroid"});
-        let centroid = getSpectralCentroid(S);
-        for (let i = 0; i < novfn.length; i++) {
-            Y[i][1] = centroid[i];
+        for (let i = 0; i < activation.length; i++) {
+            activation[i] /= max;
         }
-        postMessage({type:"newTask", taskString:"Computing spectral roloff"});
-        let roloff = getSpectralRoloff(S);
-        for (let i = 0; i < novfn.length; i++) {
-            Y[i][2] = roloff[i];
-        }
-        // Step 5: Normalize features
-        postMessage({type:"newTask", taskString:"Normalizing Features"});
-        Y = getSTDevNorm(Y);
 
-        postMessage({type:"end", novfn:novfn, beatRamp:beatRamp, Y:Y, tempoInfo:tempoInfo});
+        postMessage({type:"end", novfn:novfn, beatRamp:beatRamp, tempoInfo:tempoInfo, activation:activation});
 
     }).catch(reason => {
         postMessage({type:"error", taskString:reason});

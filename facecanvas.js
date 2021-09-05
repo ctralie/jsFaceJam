@@ -25,6 +25,29 @@ function pad(n, width, z) {
     return n.length >= width ? n : new Array(width - n.length + 1).join(z) + n;
   }
 
+
+/**
+ * Concatenate a list of face points together into one list and add 
+ * the points at the extremities of the image
+ * @param {3d array} faces An array of faces, each of which has a list of points, 
+ *                         each of which is a list [x, y]
+ * @param {int} width Width of image containing faces
+ * @param {int} height Height of image containing faces
+ */
+function unwrapFacePoints(faces, width, height) {
+    let points = [];
+    for (let f = 0; f < faces.length; f++) {
+        for (let i = 0; i < faces[f].length; i++) {
+            points.push(faces[f][i]);
+        }
+    }
+    points.push([0,0]);
+    points.push([width,0]);
+    points.push([0,height]);
+    points.push([width,height]);
+    return points;
+}
+
 /**
  * Given a list of pixel locations on an image, transform them into texture coordinates
  * @param {2d array} points An array of points, each of which is a list [x, y].
@@ -75,6 +98,9 @@ class FaceCanvas {
         this.shader = null;
         this.texture = null; // Regular texture
         this.wtexture = null; // Watermarked texture
+        this.faces = []; // List of face points
+        this.imgwidth = 0;
+        this.imgheight = 0;
 
         this.audio = null; // SampledAudio object
         this.audioPlayer = document.getElementById("audioPlayer");
@@ -89,13 +115,13 @@ class FaceCanvas {
         this.win = win;
         this.novfn = [];
         this.beatRamp = [];
-        this.featureCoords = [];
+        this.activation = [];
         this.setupAudioHandlers();
 
         this.eyebrowEnergySlider = document.getElementById("eyebrowEnergySlider");
         this.eyebrowEnergySlider.value = 20;
         this.faceEnergySlider = document.getElementById("faceEnergySlider");
-        this.faceEnergySlider.value = 20;
+        this.faceEnergySlider.value = 100;
         this.smoothnessSlider = document.getElementById("smoothnessSlider");
         this.smoothnessSlider.value = 100;
         this.resolutionSlider = document.getElementById("resolutionSlider");
@@ -119,7 +145,7 @@ class FaceCanvas {
 
 
         this.time = 0.0;
-        this.faceReady = false;
+        this.facesReady = false;
         this.thisTime = (new Date()).getTime();
         this.lastTime = this.thisTime;
         this.time = 0;
@@ -147,7 +173,7 @@ class FaceCanvas {
     setupAudioHandlers() {
         const that = this;
         function printMissing() {
-            if (!that.faceReady) {
+            if (!that.facesReady) {
                 progressBar.setLoadingFailed("Be sure to load a face to see the animation!");
             }
             else if(!that.audioReady) {
@@ -155,7 +181,7 @@ class FaceCanvas {
             }
         }
         this.audioPlayer.addEventListener("play", function() {
-            if (that.faceReady && that.audioReady) {
+            if (that.facesReady && that.audioReady) {
                 that.animating = true;
                 requestAnimationFrame(that.repaint.bind(that));
             }
@@ -165,7 +191,7 @@ class FaceCanvas {
         });
         this.audioPlayer.addEventListener("pause", function() {
             that.animating = false;
-            if (that.faceReady && that.audioReady) {
+            if (that.facesReady && that.audioReady) {
                 requestAnimationFrame(that.repaint.bind(that));
             }
             else {
@@ -173,7 +199,7 @@ class FaceCanvas {
             }
         });
         this.audioPlayer.addEventListener("seek", function() {
-            if (that.faceReady && that.audioReady) {
+            if (that.facesReady && that.audioReady) {
                 requestAnimationFrame(that.repaint.bind(that));
             }
             else {
@@ -224,10 +250,6 @@ class FaceCanvas {
 
                 // Setup triangles
                 const indexBuffer = gl.createBuffer();
-                gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
-                gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(FACE_TRIS), gl.STATIC_DRAW);
-                indexBuffer.itemSize = 1;
-                indexBuffer.numItems = FACE_TRIS.length;
                 shader.indexBuffer = indexBuffer;
                 that.shader = shader;
 
@@ -244,7 +266,7 @@ class FaceCanvas {
         const that = this;
         new Promise((resolve, reject) => {
             const worker = new Worker("audioworker.js");
-            let payload = {samples:that.audio.samples, sr:that.audio.sr, win:that.win, hop:that.hop, nfeatures:FACE_EXPRESSIONS.sv.length};
+            let payload = {samples:that.audio.samples, sr:that.audio.sr, win:that.win, hop:that.hop};
             worker.postMessage(payload);
             worker.onmessage = function(event) {
                 if (event.data.type == "newTask") {
@@ -260,12 +282,12 @@ class FaceCanvas {
                 else if (event.data.type == "end") {
                     that.novfn = event.data.novfn;
                     that.beatRamp = event.data.beatRamp;
-                    that.featureCoords = event.data.Y;
+                    that.activation = event.data.activation;
                     resolve();
                 }
             }
         }).then(() => {
-            if (this.faceReady) {
+            if (this.facesReady) {
                 progressBar.changeToReady();
             }
             else {
@@ -301,15 +323,17 @@ class FaceCanvas {
      * update the texture coordinate buffer.  This can be used to move
      * the face around
      * 
-     * @param {2d array} points An array of points, each of which is a list [x, y]
+     * @param {3d array} faces An array of faces, each of which has a list of points, 
+     *                         each of which is a list [x, y]
      */
-    updateVertexBuffer(points) {
+    updateVertexBuffer(faces) {
         let that = this;
         if (!('shaderReady' in this.shader)) {
-            this.shader.then(that.updateVertexBuffer(points).bind(that));
+            this.shader.then(that.updateVertexBuffer(faces).bind(that));
         }
         else {
             const gl = this.gl;
+            const points = unwrapFacePoints(faces, this.imgwidth, this.imgheight);
             let vertPoints = getVertexCoordinates(points);
             vertPoints = new Float32Array(vertPoints);
             gl.bindBuffer(gl.ARRAY_BUFFER, this.shader.positionBuffer);
@@ -318,28 +342,64 @@ class FaceCanvas {
     }
 
     /**
-     * Update the points for the face for both the vertex buffer
-     * and texture coordinate buffer.
-     * 
+     * Perform a Delaunay triangulation on the points and copy it
+     * over to the GPU as an index buffer
      * @param {2d array} points An array of points, each of which is a list [x, y]
+     * It is assumed that the last point has coordinates [width, width]
      */
-     setPoints(points) {
-        if (!(points === undefined)) {
+    updateIndexBuffer(points) {
+        let that = this;
+        if (!('shaderReady' in this.shader)) {
+            this.shader.then(that.updateIndexBuffer(points).bind(that));
+        }
+        else {
+            const gl = this.gl;
+            const indexBuffer = this.shader.indexBuffer;
+            // Unravel points
+            let X = new Float32Array(points.length*2);
+            for (let i = 0; i < points.length; i++) {
+                X[i*2] = points[i][0];
+                X[i*2+1] = points[i][1];
+            }
+            const delaunay = new Delaunator(X);
+            const tris = delaunay._triangles;
+            gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
+            gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(tris), gl.STATIC_DRAW);
+            indexBuffer.itemSize = 1;
+            indexBuffer.numItems = tris.length;
+        }
+    }
+
+    /**
+     * Update the points for the face for both the vertex buffer
+     * and texture coordinate buffer, including points at the boundaries of the image
+     * 
+     * @param {3d array} faces An array of faces, each of which has a list of points, 
+     *                         each of which is a list [x, y]
+     * @param {int} width Width of image containing faces
+     * @param {int} height Height of image containing faces
+     */
+     setFacePoints(faces, width, height) {
+        if (faces.length > 0) {
             let that = this;
             if (!('shaderReady' in this.shader)) {
-                this.shader.then(that.setPoints(points).bind(that));
+                this.shader.then(that.setFacePoints(faces, width, height).bind(that));
             }
             else {
-                this.points = points;
+                this.faces = faces;
+                this.imgwidth = width;
+                this.imgheight = height;
                 const gl = this.gl;
-                this.updateVertexBuffer(points);
+                const points = unwrapFacePoints(faces, this.imgwidth, this.imgheight);
+                this.updateVertexBuffer(faces);
                 let textureCoords = new Float32Array(getTextureCoordinates(points));
                 gl.bindBuffer(gl.ARRAY_BUFFER, this.shader.textureCoordBuffer);
                 gl.bufferData(gl.ARRAY_BUFFER, textureCoords, gl.STATIC_DRAW);
+                this.updateIndexBuffer(points);
                 if (this.active) {
                     requestAnimationFrame(this.repaint.bind(this));
                 }
-                this.faceReady = true;
+                this.facesReady = true;
                 if (this.audioReady) {
                     progressBar.changeToReady();
                 }
@@ -357,7 +417,7 @@ class FaceCanvas {
      * Begin the process of capturing the video frame by frame
      */
     startVideoCapture() {
-        if (!this.faceReady) {
+        if (!this.facesReady) {
             progressBar.setLoadingFailed("Need to select face image first!");
         }
         else if (!this.audioReady) {
@@ -426,7 +486,6 @@ class FaceCanvas {
         // Setup audio blob
         let mp3bytes = getMP3Binary(this.audio.samples, this.audio.sr);
         that.frames.push({name: "audio.mp3", data: mp3bytes});
-        console.log(that.frames);
         // Call ffmpeg
         let videoRes = parseInt(that.resolutionSlider.value);
         worker.postMessage({
@@ -461,27 +520,27 @@ class FaceCanvas {
         }
 
         // Step 2: Update the facial landmark positions according to the audio
-        if (this.active && this.points.length > 0) {
-            // TODO (Later, for expression transfer): Store first frame of Parker's face,
-            // then do point location, and map through Barycentric coordinates to the new
-            // neutral face
+        if (this.active && this.faces.length > 0) {
+            // Store first frame of the expression, then do point location
+            // and map through Barycentric coordinates to the new neutral face
             let smoothness = that.smoothnessSlider.value/100;
-            let epsilon = new Float32Array(FACE_EXPRESSIONS.sv.length);
             let eyebrow = 0;
-            if (this.audioReady && this.faceReady) {
+            let activation = 0;
+            if (this.audioReady && this.facesReady) {
                 let idx = Math.floor(time*this.audio.sr/this.hop);
                 if (idx < this.novfn.length) {
                     eyebrow = smoothness*this.beatRamp[idx] + (1-smoothness)*this.novfn[idx];
                     eyebrow *= 0.25*this.eyebrowEnergySlider.value;
                 }
-                if (idx < this.featureCoords.length) {
-                    for (let i = 0; i < this.featureCoords[idx].length; i++) {
-                        epsilon[i] = 0.1*this.faceEnergySlider.value*this.featureCoords[idx][i]*FACE_EXPRESSIONS.sv[i];
-                    }
+                if (idx < this.activation.length) {
+                    activation = this.activation[idx]*this.faceEnergySlider.value/100;
                 }
             }
-            let points = transferFacialExpression(epsilon, this.points, eyebrow);
-            this.updateVertexBuffer(points);
+            let faces = [];
+            for (let f = 0; f < this.faces.length; f++) {
+                faces[f] = transferFacialExpression("happy", this.faces[f], activation, eyebrow);
+            }
+            this.updateVertexBuffer(faces);
         }
 
         // Step 3: Finally, draw the frame

@@ -11,72 +11,14 @@ let landmarkModelsLoaded = false;
 
 
 /**
- * Compute a set of points that will be added to the end of a facial landmark
- * point cloud.  The new points consist of a padded bounding box around the
- * landmarks, as well as a box around the entire image
- * 
- * @param {array} points List of 2D points for facial landmarks
- * @param {float} width Width of image on which facial landmarks were computed
- * @param {float} height Height of image on which facial landmarks were computed
- * @returns An array of the new points
- */
-function getBBoxPaddedPoints(points, width, height) {
-    let maxX = points[0][0];
-    let minX = points[0][0];
-    let minY = points[0][1];
-    let maxY = points[0][1];
-    for (i = 0; i < points.length; i++) {
-        if (points[i][0] > maxX) {
-            maxX = points[i][0];
-        } 
-        else if (points[i][0] < minX) {
-            minX = points[i][0];
-        }
-        if (points[i][1] > maxY) {
-            maxY = points[i][1];
-        } 
-        else if (points[i][1] < minY) {
-            minY = points[i][1];
-        }
-    }
-    maxX = maxX + width*BBOX_PAD;
-    minX = minX - width*BBOX_PAD;
-    maxY = maxY + height*BBOX_PAD;
-    minY = minY - height*BBOX_PAD;
-    return [[minX,minY],[maxX,minY],[minX,maxY],[maxX,maxY],[0,0],[width,0],[0,height],[width,height]];
-}
-
-// Initialize an unrolled model center with bounding box points
-let CMODEL = [];
-let cpoints = [];
-for (let i = 0; i < FACE_EXPRESSIONS.center.length; i+=2) {
-    CMODEL.push(FACE_EXPRESSIONS.center[i]);
-    CMODEL.push(FACE_EXPRESSIONS.center[i+1]);
-    cpoints.push([FACE_EXPRESSIONS.center[i], FACE_EXPRESSIONS.center[i+1]]);
-}
-cpoints = getBBoxPaddedPoints(cpoints, FACE_MODEL_WIDTH, FACE_MODEL_HEIGHT);
-for (let i = 0; i < cpoints.length; i++) {
-    CMODEL.push(cpoints[i][0]);
-    CMODEL.push(cpoints[i][1]);
-}
-// Compute delaunay triangulation
-const CMODEL_DELAUNAY = new Delaunator(CMODEL);
-const FACE_TRIS = CMODEL_DELAUNAY._triangles;
-// Create quick lookup structure for adjacent triangles
-const ADJACENT_TRIS = [];
-for (let i = 0; i < CMODEL.length; i++) {
-    ADJACENT_TRIS.push([]);
-}
-for (let ti = 0; ti < FACE_TRIS.length/3; ti++) {
-    for (let k = 0; k < 3; k++) {
-        ADJACENT_TRIS[FACE_TRIS[ti*3+k]].push(ti);
-    }
-}
-
-/**
  * Compute the facial landmarks
  * @param {Image} img Handle to an image on which to compute facial landmarks
- * @returns 
+ * @returns {   
+ *           "faces": A list of facial landmarks of all of the faces present in 
+ *                   the image, including the 4 bounding box points for each one
+ *           "width": Width of the image
+ *           "height": Height of the image
+ *          }
  */
 async function getFacialLandmarks(img) {
     if (!landmarkModelsLoaded) {
@@ -89,19 +31,23 @@ async function getFacialLandmarks(img) {
     let fullFaceDescriptions = await faceapi.detectAllFaces(img).withFaceLandmarks();
     if (fullFaceDescriptions.length == 0) {
         progressBar.setLoadingFailed("No faces found!  Try another image");
-        return;
+        return [];
     }
-    let points = [];
-    for (i = 0; i < fullFaceDescriptions[0].landmarks.positions.length; i++) {
-        X = fullFaceDescriptions[0].landmarks.positions[i].x;
-        Y = fullFaceDescriptions[0].landmarks.positions[i].y;
-        points.push([X, Y]);
+    let faces = [];
+    for (let f = 0; f < fullFaceDescriptions.length; f++) {
+        let points = [];
+        for (i = 0; i < fullFaceDescriptions[f].landmarks.positions.length; i++) {
+            X = fullFaceDescriptions[f].landmarks.positions[i].x;
+            Y = fullFaceDescriptions[f].landmarks.positions[i].y;
+            points.push([X, Y]);
+        }
+        let bboxPoints = getBBoxPaddedPoints(points);
+        for (let i = 0; i < bboxPoints.length; i++) {
+            points.push(bboxPoints[i]);
+        }
+        faces.push(points);
     }
-    let bboxPoints = getBBoxPaddedPoints(points, img.width, img.height);
-    for (let i = 0; i < bboxPoints.length; i++) {
-        points.push(bboxPoints[i]);
-    }
-    return points;
+    return {"faces":faces, "width":img.width, "height":img.height};
 }
 
 
@@ -178,65 +124,83 @@ async function getFacialLandmarks(img) {
 /**
  * Get the coordinates of the 3 points on a particular triangle in
  * the facemodel
+ * @param {array} X 2D array of points
+ * @param {array} tris 2D array of triangle indices
  * @param {int} ti Triangle index
  * @returns [a, b, c] on the triangle, as vec3 objects
  */
-function getTri(ti) {
-    let a = [CMODEL[FACE_TRIS[ti*3]*2], CMODEL[FACE_TRIS[ti*3]*2+1], 0];
-    let b = [CMODEL[FACE_TRIS[ti*3+1]*2], CMODEL[FACE_TRIS[ti*3+1]*2+1], 0];
-    let c = [CMODEL[FACE_TRIS[ti*3+2]*2], CMODEL[FACE_TRIS[ti*3+2]*2+1], 0];
+function getTri(X, tris, ti) {
+    let a = [X[tris[ti*3]][0], X[tris[ti*3]][1], 0];
+    let b = [X[tris[ti*3+1]][0], X[tris[ti*3+1]][1], 0];
+    let c = [X[tris[ti*3+2]][0], X[tris[ti*3+2]][1], 0];
     return [a, b, c];
 }
 
 /**
  * In the below: X refers to model, Y refers to new face image that's been inputted
- * Given that we have N landmarks, given the expression model expressions,
- * and given a set of coordinates "epsilon" to apply to the model
- * 1) Apply the coordinates to the model (coords = center + PCs*epsilon)
- * 2) Unravel the coordinates into XModelNew (N x 2).  Now we have 2D coordinates 
- *      for the *model face* in a new expression determined by epsilon
- * 3) Apply eyebrow motion by moving eyebrow landmarks vertically.  This assumes
+ * Given that we have N landmarks, given a particular facial expression, and given 
+ * the activation to apply to that expression
+ * 1) Figure out a facial frame in the trajectory of the facial expression, using
+ *    linear interpolation, and put it into the array XModelNew (N x 2).  
+ *    Now we have 2D coordinates for the new expression determined by activation
+ * 2) Apply eyebrow motion by moving eyebrow landmarks vertically.  This assumes
  *    the head is aligned vertically in the model
- * 4) Come up with barycentric coordinates alpha_i and triangle index T_i 
+ * 3) Come up with barycentric coordinates alpha_i and triangle index T_i 
  *      for every x_i in XModelNew
- * 5) Given Y (N x 2), the coordinates of the new face landmarks.  For each
+ * 4) Given Y (N x 2), the coordinates of the new face landmarks.  For each
  *      y_i in Y, apply alpha_i to triangle T_i, using the appropriate coordinates
  *      Y as the vertices of triangle T_i
  *      In particular, if alpha_i = (scalar a, scalar b, scalar c), 
  *      and T_i = (vector y_a, vector y_b, vector y_c)
  *      final re-positioning of y_i = a*y_a + b*y_b + c*y_c
- * @param {array} epsilon The coordinates of the expression
+ * @param {string} expression 
  * @param {array} Y An Nx2 array of the coordinates of the new face landmarks, assumed
  *                  to be in a neutral expression
+ * @param {array} activation How much the expression is activated
  * @param {float} dEyebrow Signed amount of eyebrow movement (default 0)
  * 
  * @return {array} An Nx2 array with the new facial landmarks
  */
- function transferFacialExpression(epsilon, Y, dEyebrow) {
+ function transferFacialExpression(expression, Y, activation, dEyebrow) {
+    if (activation === undefined) {
+        activation = 0;
+    }
     if (dEyebrow === undefined) {
         dEyebrow = 0;
     }
     let tic = (new Date()).getTime();
-    // Step 1: Apply the coordinates to the model (coords = center + PCs*epsilon)
-    let points1D = numeric.add(numeric.dot(FACE_EXPRESSIONS.PCs,epsilon), FACE_EXPRESSIONS.center);
-    // Step 2: Unravel into 2D array
-    let XModelNew = [];
-    for (let i = 0; i < points1D.length; i += 2) {
-        // Make 3D with implied z=0 so we can use vec3
-        XModelNew.push([points1D[i],points1D[i+1], 0]); 
+    // Step 1: Figure out facial expression
+    if (!(expression in FACE_EXPRESSIONS)) {
+        console.log("ERROR: Looking for expression " + expression + ", which does not exist");
+        return Y;
     }
-    // Step 3: Apply eyebrow motion
+    let frames = FACE_EXPRESSIONS[expression];
+    let tris = FACE_EXPRESSION_TRIS[expression].tris;
+    let adjacentTris = FACE_EXPRESSION_TRIS[expression].adjacentTris;
+    let idx = activation*(frames.length-1);
+    let i1 = Math.floor(idx);
+    let i2 = Math.ceil(idx);
+    let dt = idx - i1;
+    let XModelNew = [];
+    for (let i = 0; i < frames[0].length; i++) {
+        // Make 3D with implied z=0 so we can use vec3
+        let x = (1-dt)*frames[i1][i][0] + dt*frames[i2][i][0];
+        let y = (1-dt)*frames[i1][i][1] + dt*frames[i2][i][1];
+        XModelNew.push([x, y, 0]); 
+    }
+    // Step 2: Apply eyebrow motion
     if (dEyebrow != 0) {
         for (let i = EYEBROW_START; i <= EYEBROW_END; i++) {
-            XModelNew[i][1] += dEyebrow;
+            XModelNew[i][0] = frames[0][i][0];
+            XModelNew[i][1] = frames[0][i][1] + dEyebrow;
         }
     }
-    // Step 4: Do point location on every point in XModelNew with respect to the 
+    // Step 3: Do point location on every point in XModelNew with respect to the 
     // mean face, and compute barycentric coordinates
     let TIdx = [];
     let coords = [];
     let touched = []; // Keep track of the last vertex that checked this triangle
-    for (let i = 0; i < FACE_TRIS.length/3; i++) {
+    for (let i = 0; i < tris.length/3; i++) {
         touched.push(-1);
     }
     let foundLast = 0;
@@ -245,10 +209,10 @@ function getTri(ti) {
         TIdx.push(-1);
         // First check the adjacent triangles
         let k = 0;
-        while(k < ADJACENT_TRIS[i].length && TIdx[i] == -1) {
-            let ti = ADJACENT_TRIS[i][k];
+        while(k < adjacentTris[i].length && TIdx[i] == -1) {
+            let ti = adjacentTris[i][k];
             touched[ti] = i;
-            let abcd = getTri(ti);
+            let abcd = getTri(frames[0], tris, ti);
             abcd.push(XModelNew[i]);
             let coordsi = getBarycentricCoords.apply(null, abcd);
             if (coordsi.length > 0) {
@@ -263,10 +227,10 @@ function getTri(ti) {
             // brute force (TODO: Could be improved with half-edge based
             // breadth first search)
             let ti = 0;
-            while(ti < FACE_TRIS.length/3 && TIdx[i] == -1) {
+            while(ti < tris.length/3 && TIdx[i] == -1) {
                 if (touched[ti] < i) {
                     touched[ti] = i;
-                    let abcd = getTri(ti);
+                    let abcd = getTri(frames[0], tris, ti);
                     abcd.push(XModelNew[i]);
                     let coordsi = getBarycentricCoords.apply(null, abcd);
                     if (coordsi.length > 0) {
@@ -278,15 +242,15 @@ function getTri(ti) {
             }
         }
     }
-    // Step 5: Transfer the barycentric coordinates to the new face
+    // Step 4: Transfer the barycentric coordinates to the new face
     let YNew = [];
     for (let i = 0; i < XModelNew.length; i++) {
         let ti = TIdx[i];
         let y = vec2.create();
         if (ti > -1) {
-            let a = Y[FACE_TRIS[ti*3]];
-            let b = Y[FACE_TRIS[ti*3+1]];
-            let c = Y[FACE_TRIS[ti*3+2]];
+            let a = Y[tris[ti*3]];
+            let b = Y[tris[ti*3+1]];
+            let c = Y[tris[ti*3+2]];
             vec2.scaleAndAdd(y, y, a, coords[i][0]);
             vec2.scaleAndAdd(y, y, b, coords[i][1]);
             vec2.scaleAndAdd(y, y, c, coords[i][2]);
@@ -296,9 +260,9 @@ function getTri(ti) {
         }
         YNew.push(y);
     }
-    // Append on the last 8 points for the bounding box of Y
-    for (let i = 0; i < 8; i++) {
-        YNew.push(Y[Y.length-8+i]);
+    // Append on the last 4 points for the bounding box of Y
+    for (let i = 0; i < 4; i++) {
+        YNew.push(Y[Y.length-4+i]);
     }
     let toc = (new Date()).getTime();
     //console.log("Elapsed time point location: ", toc-tic, ", foundLast = ", foundLast, "of", XModelNew.length);
@@ -321,8 +285,8 @@ function makeWatermark(image) {
     let ctx = offscreenCanvas.getContext("2d");
     ctx.clearRect(0, 0, res, res);
     ctx.drawImage(image, 0, 0, image.width, image.height, 0, 0, res*dw, res*dh);
-    ctx.font = Math.round(30*res/512)+"px Arial";
-    ctx.strokeText("facejam.app", 20*res/512, 30*res/512);
+    ctx.font = Math.round(24*res/512)+"px Arial";
+    ctx.strokeText("www.facejam.app", 10*res/512, 20*res/512);
 
     let squareImg = new Image();
     squareImg.src = offscreenCanvas.toDataURL();
@@ -340,8 +304,8 @@ function squareImageDrawn(image) {
     let texture = loadTexture(faceCanvas.gl, image);
     faceCanvas.updateTexture(texture);
     // Initialize facial landmarks
-    getFacialLandmarks(image).then(points => {
-        faceCanvas.setPoints(points);
+    getFacialLandmarks(image).then(res => {
+        faceCanvas.setFacePoints(res.faces, res.width, res.height);
     });
 }
 
