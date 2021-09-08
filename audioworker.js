@@ -30,10 +30,12 @@ onmessage = function(event) {
         // Step 2: Estimate tempo
         postMessage({type:"newTask", taskString:"Estimating tempo"});
         let tempoInfo = getACDFDFTTempo(novfn, hop, sr);
+        let tempos = getKHighestTempos(tempoInfo.bpm, tempoInfo.strength, 3);
+        tempos.sort(); // Go with slowest tempo first
 
         // Step 3: Extract beats
         postMessage({type:"newTask", taskString:"Finding beats"});
-        let beats = getBeats(novfn, sr, hop, tempoInfo.maxBpm, 1);
+        let beats = getBeats(novfn, sr, hop, tempos[0], 1);
         let beatRamp = getRampBeats(novfn, beats);
         
         // Step 4: Extract energy
