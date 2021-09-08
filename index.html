@@ -30,9 +30,13 @@
 
     <table>
         <tr>
-            <td colspan = "2"><b>Example Tunes 🎵</b>
+            <td>
+                <div id = "spotifyDiv"></div>
+            </td>
+            <td><b>Example Tunes 🎵</b>
                 <div class = "select-wrapper">
                     <select id="ExampleTunes" name = "ExampleTunes">
+                        <option disabled selected value> -- select an option -- </option>
                         <option value = "ExampleTunes/barry.mp3">Barry White</option>
                         <option value = "ExampleTunes/beyonce.mp3">Beyoncé</option>
                         <option value = "ExampleTunes/erykah.mp3">Erykah Badu</option>
@@ -45,6 +49,7 @@
         <td colspan = "2"><b>Example Images 🎨</b>
             <div class = "select-wrapper">
                 <select id="ExamplePictures" name = "ExamplePictures">
+                    <option disabled selected value> -- select an option -- </option>
                     <option value = "ExamplePhotos/awkwafina.jpg">Awkwafina</option>
                     <option value = "ExamplePhotos/Cristiano.jpg">Cristiano D'Angelo</option>
                     <option value = "ExamplePhotos/hannibal.jpg">Hannibal Buress</option>
@@ -104,7 +109,10 @@
     </table>
 
 
-<script src="main.js"></script>
+    <script src="jsanov/libs/base64-arraybuffer.js"></script>
+    <script src="jsanov/libs/randomstring.js"></script>
+    <script src="jsanov/spotify.js"></script>
+    <script src="main.js"></script>
 
 
 <!-- Footer -->

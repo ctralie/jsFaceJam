@@ -57,6 +57,16 @@ exampleTuneMenu.addEventListener('change', function(e){
     progressBar.startLoading();
 });
 
+const clientID = "3e2dfda5badd4c5bb3a0945288629c1e";
+const redirectURI = "http://127.0.0.1:5500";
+let spotify = new Spotify("spotifyDiv", clientID, redirectURI, audio, function() {
+    progressBar.changeToReady("Finished loading audio");
+    faceCanvas.connectAudio(audio);
+},
+function() {
+    progressBar.setLoadingFailed("Failed to load Spotify audio 😿");
+});
+
 let tuneInput = document.getElementById('tuneInput');
 tuneInput.addEventListener('change', function(e) {
     let reader = new FileReader();
