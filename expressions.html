@@ -3,61 +3,50 @@
     <script src="libs/face-api.js"></script>
     <script src="libs/face-api.min.js"></script>
     <script src="https://unpkg.com/delaunator@4.0.1/delaunator.min.js"></script>
-    <script src="shaders.js"></script>
-    <script src="texture.js"></script>
+    <script src="libs/gl-matrix-min.js"></script>
+    <script src="expressionsmodel.js"></script>
+    <script src="progressbar.js"></script>
     <script src="faceutils.js"></script>
-    <script src="facecanvas.js"></script>
-    <script src="debugcanvas.js"></script>
-    <link rel="stylesheet" href="styles.css">
     <meta charset="utf-8" />
 </head>
 <body>
 
-<canvas id = "DebugCanvas" width = "800" height = "800" style="border:1px solid #000000;">
-</canvas>
-
 
 
 <script>
-    // Points, tris, width, and height are global variables for now
-    // since they're shared between canvases
-    let points = [];
-    let W = 1;
-    let H = 1;
+    let progressBar = new ProgressBar();
+    let NFrames = 63;
+    let frameIdx = 0;
+    let frames = [];
 
-    let debugCanvas = new DebugCanvas();
-
-    // Load image that goes to texture
-    const image = document.getElementById("faceImg");
-    let allpoints = [];
-
-    function updateDelaunay() {
-        allpoints.push(points.map(function(point) {
-            return Array.from(point);
-        }));
-        console.log(allpoints.length + " sets loaded");
+    function download(content, fileName, contentType) {
+        let a = document.createElement("a");
+        let file = new Blob([content], {type: contentType});
+        a.href = URL.createObjectURL(file);
+        a.download = fileName;
+        a.click();
     }
 
-    function getAllExpressions() {
-        const NFrames = 550;
-        for (let frameIdx = 0; frameIdx < NFrames; frameIdx++) {
-            /*while (allpoints.length < frameIdx) {
-                console.log("Waiting");
-            }*/
-            console.log("Doing frame " + (frameIdx+1));
-            let image = new Image();
-            image.src = "frames/" + (frameIdx+1) + ".png";
-            image.onload = function() {
-                W = image.width;
-                H = image.height;
-                debugCanvas.img = image;
-                requestAnimationFrame(debugCanvas.repaint.bind(debugCanvas));
-                getFaces(image); // Initialize facial landmarks*/
-            }
+    function getExpression() {
+        let image = new Image();
+        image.src = "frames/frames/" + (frameIdx+1) + ".png";
+        image.onload = function() {
+            W = image.width;
+            H = image.height;
+            getFacialLandmarks(image).then(result => {
+                console.log(frameIdx);
+                frames.push(result.faces[0]);
+                frameIdx++;
+                if (frameIdx < NFrames) {
+                    getExpression();
+                }
+                else {
+                    download(JSON.stringify(frames), 'expression.json', 'text/json');
+                }
+            });
         }
     }
-
-    getAllExpressions();
+    getExpression();
 
 
 

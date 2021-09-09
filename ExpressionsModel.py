@@ -3,7 +3,6 @@ Code to stabilize facial landmarks and extract particular expressions
 """
 
 import numpy as np
-import scipy.io as sio
 import matplotlib.pyplot as plt
 from scipy.ndimage import median_filter
 from skimage import io
@@ -44,18 +43,20 @@ def getProcrustesAlignment(X, Y, idx):
     return (Cx, Cy, R)    
 
 
-def getFaceModel(stabilize = False, doPlot = False):
+def getFaceModel(filepath, stabilize = False, doPlot = False):
     """
     Do Procrustes alignment on all of the frames to align them
     to the first frame, and pull out a few specific expressions
     Parameters
     ----------
+    filepath: string
+        Path to json file with this expression
     stabilize: boolean
         Whether to apply rigid Procrustes stabilization
     doPlot: boolean
         Whether to plot the landmarks to show stabilization
     """
-    allkeypts = sio.loadmat("frames/allkeypts.mat")["X"]
+    allkeypts = np.array(json.load(open(filepath)))
     allkeypts = allkeypts[:, 0:-8, :] # Discard the bounding boxes
     afterprocrustes = np.zeros_like(allkeypts)
     
@@ -64,68 +65,59 @@ def getFaceModel(stabilize = False, doPlot = False):
         Y = allkeypts[0, :, :].T
         for i in range(1, allkeypts.shape[0]):
             X = allkeypts[i, :, :].T
-            Cx, Cy, R = getProcrustesAlignment(X[:, 0:-4], Y[:, 0:-4], np.arange(X.shape[1]-4))
+            Cx, Cy, R = getProcrustesAlignment(X, Y, np.arange(X.shape[1]))
             XNew = X - Cx
             XNew = R.dot(XNew)
             XNew += Cy
-            XNew[:, -4::] = Y[:, -4::]
             afterprocrustes[i, :, :] = XNew.T
     aftermedian = np.zeros_like(afterprocrustes)
     for k in range(2):
         aftermedian[:, :, k] = median_filter(afterprocrustes[:, :, k], size=(8, 1))
     
-    expressions = {"happy":[80, 150], "surprised":[190, 270], "angry":[304, 340], "confused":[440, 470]}
-    for key in expressions:
-        value = []
-        for i in range(expressions[key][0], expressions[key][1]+1):
-            X = aftermedian[i, :, :]
-            value.append(np.round(X, decimals=1).tolist())
-        expressions[key] = value
-    fout = open("expressions.json", "w")
-    fout.write(json.dumps(expressions))
-    fout.close()
-    
     if doPlot:
         xlim = [np.min(allkeypts[:, :, 0]), np.max(allkeypts[:, :, 0])]
         ylim = [np.min(allkeypts[:, :, 1]), np.max(allkeypts[:, :, 1])]
         plt.figure(figsize=(10, 10))
-        for expression in ["surprised"]:
-            [i1, i2] = expressions[expression]
-            for i, idx in enumerate(range(i1, i2+1)):
-                plt.clf()
-                plt.subplot(221)
-                X = allkeypts[idx, :, :]
-                I = io.imread("frames/orig/{}.png".format(idx))
-                plt.imshow(I)
-                plt.scatter(X[:, 0], X[:, 1], 2)
-                plt.axis("off")
+        for i in range(len(aftermedian)):
+            plt.clf()
+            plt.subplot(221)
+            X = allkeypts[i, :, :]
+            I = io.imread("frames/frames/{}.png".format(i+1))
+            plt.imshow(I)
+            plt.scatter(X[:, 0], X[:, 1], 2)
+            plt.axis("off")
 
-                plt.subplot(222)
-                plt.scatter(X[:, 0], X[:, 1])
-                plt.xlim(xlim)
-                plt.ylim(ylim)
-                plt.gca().invert_yaxis()
-                plt.axis("off")
-                plt.title("Original Landmarks")
+            plt.subplot(222)
+            plt.scatter(X[:, 0], X[:, 1])
+            plt.xlim(xlim)
+            plt.ylim(ylim)
+            plt.gca().invert_yaxis()
+            plt.axis("off")
+            plt.title("Original Landmarks")
 
-                plt.subplot(223)
-                X = afterprocrustes[idx, :, :]
-                plt.scatter(X[:, 0], X[:, 1])
-                plt.xlim(xlim)
-                plt.ylim(ylim)
-                plt.gca().invert_yaxis()
-                plt.axis("off")
-                plt.title("Procrustes Aligned Landmarks")
+            plt.subplot(223)
+            X = afterprocrustes[i, :, :]
+            plt.scatter(X[:, 0], X[:, 1])
+            plt.xlim(xlim)
+            plt.ylim(ylim)
+            plt.gca().invert_yaxis()
+            plt.axis("off")
+            plt.title("Procrustes Aligned Landmarks")
 
-                plt.subplot(224)
-                X = aftermedian[idx, :, :]
-                plt.scatter(X[:, 0], X[:, 1])
-                plt.xlim(xlim)
-                plt.ylim(ylim)
-                plt.gca().invert_yaxis()
-                plt.axis("off")
-                plt.title("Median Smoothed Landmarks")
+            plt.subplot(224)
+            X = aftermedian[i, :, :]
+            plt.scatter(X[:, 0], X[:, 1])
+            for k in range(X.shape[0]):
+                plt.text(X[k, 0], X[k, 1], "%i"%k)
+            plt.xlim(xlim)
+            plt.ylim(ylim)
+            plt.gca().invert_yaxis()
+            plt.axis("off")
+            plt.title("Median Smoothed Landmarks")
 
-                plt.savefig("frames/{}_{}.png".format(expression, i), bbox_inches='tight')
+            plt.savefig("Processed{}.png".format(i), bbox_inches='tight')
+    return aftermedian
 
-getFaceModel(stabilize=True)
+res = getFaceModel("smile.json", stabilize=True, doPlot=False)
+res = np.round(res, 1).tolist()
+json.dump(res, open("smileres.json", "w"))
