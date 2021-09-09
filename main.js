@@ -81,6 +81,18 @@ tuneInput.addEventListener('change', function(e) {
     progressBar.startLoading();
 });
 
+function startRecording() {
+    progressBar.startLoading();
+    audio.startRecording("start", "stop");
+    progressBar.loadString = "Recording audio";
+}
+function stopRecording() {
+    audio.stopRecording().then(function(){
+        progressBar.changeToReady("Finished loading audio");
+        faceCanvas.connectAudio(audio);
+    });
+}
+
 /********************************************************
  *                  OTHER BUTTONS                       *
  ********************************************************/
