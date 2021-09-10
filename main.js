@@ -58,7 +58,7 @@ exampleTuneMenu.addEventListener('change', function(e){
 });
 
 const clientID = "3e2dfda5badd4c5bb3a0945288629c1e";
-const redirectURI = "http://www.facejam.app";
+const redirectURI = "https://www.facejam.app";
 let spotify = new Spotify("spotifyDiv", clientID, redirectURI, audio, function() {
     progressBar.changeToReady("Finished loading audio");
     faceCanvas.connectAudio(audio);
