@@ -119,7 +119,7 @@ class FaceCanvas {
         this.setupAudioHandlers();
 
         this.eyebrowEnergySlider = document.getElementById("eyebrowEnergySlider");
-        this.eyebrowEnergySlider.value = 20;
+        this.eyebrowEnergySlider.value = 40;
         this.faceEnergySlider = document.getElementById("faceEnergySlider");
         this.faceEnergySlider.value = 100;
         this.smoothnessSlider = document.getElementById("smoothnessSlider");
