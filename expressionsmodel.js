@@ -53,11 +53,10 @@ function setupExpressions() {
     // and add it to all frames in that expression
     let NLandmarks = 0;
     for (const expression in FACE_EXPRESSIONS) {
-        let X = FACE_EXPRESSIONS[expression][0]; // First frame of this expression
         let bbox = getBBoxPaddedPoints(FACE_EXPRESSIONS[expression][0]);
         for (let i = 0; i < FACE_EXPRESSIONS[expression].length; i++) {
             for (let k = 0; k < bbox.length; k++) {
-                FACE_EXPRESSIONS[expression][i].push(bbox[i]);
+                FACE_EXPRESSIONS[expression][i].push(bbox[k]);
             }
             if (i == 0) {
                 NLandmarks = FACE_EXPRESSIONS[expression][0].length;

@@ -51,12 +51,12 @@ function unwrapFacePoints(faces, width, height) {
 /**
  * Given a list of pixel locations on an image, transform them into texture coordinates
  * @param {2d array} points An array of points, each of which is a list [x, y].
- * It is assumed that the last point has coordinates [width, width]
+ * It is assumed that the second to last point has coordinates [width, width]
  *  
  */
 function getTextureCoordinates(points) {
     let texPoints = [];
-    let res = points[points.length-1][0];
+    let res = points[points.length-2][0];
     for (i = 0; i < points.length; i++) {
         texPoints[i*2] = points[i][0]/res;
         texPoints[(i*2)+1] = points[i][1]/res;
@@ -68,11 +68,11 @@ function getTextureCoordinates(points) {
  * Given a list of pixel locations on an image, transform them into
  * vertex coordinates to be displayed on the viewing square [-1, 1] x [-1, 1]
  * @param {2d array} points An array of points, each of which is a list [x, y]
- * It is assumed that the last point has coordinates [width, width]
+ * It is assumed that the second to last point has coordinates [width, width]
  */
 function getVertexCoordinates(points) {
     let vertPoints = [];
-    let res = points[points.length-1][0];
+    let res = points[points.length-2][0];
     for (i = 0; i < points.length; i++) {
         vertPoints[i*2] = 2*points[i][0]/res - 1;
         vertPoints[(i*2)+1] = 1 - (2*points[i][1]/res);
@@ -352,9 +352,8 @@ class FaceCanvas {
      * the full image
      */
     updateIndexBuffer(points) {
-        let that = this;
         if (!('shaderReady' in this.shader)) {
-            this.shader.then(that.updateIndexBuffer(points).bind(that));
+            this.shader.then(this.updateIndexBuffer(points).bind(this));
         }
         else {
             const gl = this.gl;
@@ -377,7 +376,6 @@ class FaceCanvas {
             offset = points.length-4;
             // Add the last 4 points for the bounding box for the full image
             for (let k = 0; k < 4; k++) {
-                let idx = numFaces*4+k;
                 X.push([points[offset+k][0], points[offset+k][1]]);
             }
             let edges = [];
