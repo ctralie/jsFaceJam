@@ -368,7 +368,6 @@ class FaceCanvas {
             let offset = N_LANDMARKS;
             for (let f = 0; f < numFaces; f++) {
                 for (let k = 0; k < 4; k++) {
-                    let idx = f*4+k;
                     X.push([points[offset+k][0], points[offset+k][1]]);
                 }
                 offset += N_LANDMARKS+4;

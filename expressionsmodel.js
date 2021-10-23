@@ -1,7 +1,25 @@
 const BBOX_PAD = 0.1;
-let N_LANDMARKS = 68;
+let N_LANDMARKS = 60;
 const EYEBROW_START = 17;
 const EYEBROW_END = 26;
+
+/**
+ * Delete the facial landmarks in the range 60-67
+ * and shift everything down, since the teeth cause
+ * a lot of problems when doing the expression transfer
+ * @param {array} points List of 2D points for facial landmarks
+ * @returns An array of the cut down points
+ */
+function cutOutInnerMouth(points) {
+    let ret = [];
+    for (let i = 0; i < 60; i++) {
+        ret.push(points[i]);
+    }
+    for (let i = 68; i < points.length; i++) {
+        ret.push(points[i]);
+    }
+    return ret;
+}
 
 /**
  * Compute a set of points that will be added to the end of a facial landmark
@@ -40,16 +58,24 @@ const EYEBROW_END = 26;
 }
 
 
-const FACE_TRIS = [8,71,70,16,70,69,16,15,70,9,8,70,71,1,68,2,1,71,3,2,71,3,48,2,26,16,69,22,23,21,10,55,9,10,9,70,19,69,68,1,0,68,0,17,68,8,7,71,48,31,2,25,26,69,39,27,21,27,22,21,10,54,55,17,18,68,18,19,68,20,23,69,19,20,69,23,20,21,0,36,17,36,0,1,36,18,17,34,30,33,49,31,48,30,32,33,31,32,30,58,7,8,7,58,59,53,63,55,23,24,69,24,25,69,28,27,39,54,11,12,11,54,10,12,11,70,11,10,70,64,53,55,54,64,55,18,37,19,36,37,18,37,20,19,4,3,71,5,4,71,4,48,3,4,5,48,7,6,71,6,5,71,6,7,59,61,49,59,49,61,67,58,61,59,50,49,67,32,50,33,49,50,31,50,32,31,63,56,55,9,56,8,55,56,9,52,34,33,29,28,39,29,31,30,15,14,70,13,54,12,13,64,54,13,14,64,13,12,70,14,13,70,41,37,36,31,41,2,41,1,2,41,36,1,20,38,21,37,38,20,38,39,21,41,38,37,5,60,48,6,60,5,60,6,59,49,60,59,60,49,48,62,61,58,61,62,67,65,63,53,52,65,53,22,43,23,28,42,27,43,42,47,29,42,28,47,42,29,27,42,22,42,43,22,35,47,29,34,35,30,35,29,30,14,35,64,64,35,53,35,52,53,52,35,34,38,40,39,40,38,41,40,41,31,40,29,39,29,40,31,57,56,63,62,57,63,57,62,58,57,58,8,56,57,8,62,66,67,66,65,52,66,62,63,65,66,63,44,24,23,43,44,23,24,44,25,25,44,26,51,66,52,50,51,33,51,52,33,51,50,67,66,51,67,26,45,16,44,45,26,16,45,15,45,46,15,46,14,15,46,45,44,35,46,47,46,35,14,46,43,47,46,44,43];
+const FACE_TRIS = [8,63,62,15,62,61,15,14,62,63,1,60,2,1,63,3,2,63,9,8,62,10,9,62,55,9,10,19,61,60,1,0,60,0,17,60,3,48,2,48,31,2,41,1,2,31,41,2,25,26,61,22,23,21,54,55,10,9,56,8,55,56,9,17,18,60,18,19,60,20,23,61,19,20,61,23,20,21,48,49,31,36,0,1,41,36,1,0,36,17,36,18,17,23,24,61,24,25,61,22,43,23,16,45,15,45,16,26,16,15,61,26,16,61,27,22,21,40,41,31,11,54,10,54,11,12,11,10,62,12,11,62,54,13,14,13,54,12,14,13,62,13,12,62,35,54,14,40,38,41,20,38,21,4,48,3,4,5,48,4,3,63,5,4,63,8,7,63,31,50,32,49,50,31,18,37,19,36,37,18,37,20,19,37,38,20,37,36,41,38,37,41,24,44,25,44,24,23,43,44,23,25,44,26,44,45,26,42,43,22,27,42,22,43,42,47,42,27,28,27,39,28,39,38,40,39,27,21,38,39,21,46,35,14,35,46,47,15,46,14,45,46,15,44,46,45,46,43,47,46,44,43,29,35,47,42,29,47,29,42,28,29,40,31,39,29,28,29,39,40,54,53,55,35,53,54,53,56,55,5,6,48,6,5,63,7,6,63,59,49,48,6,59,48,59,6,7,50,33,32,56,57,8,58,50,49,59,58,49,58,59,7,58,7,8,57,58,8,29,30,35,33,30,32,30,31,32,30,29,31,53,52,56,52,53,35,51,33,50,51,52,33,58,51,50,51,58,57,51,57,56,52,51,56,34,52,35,52,34,33,30,34,35,34,30,33];
 let ADJACENT_TRIS = [];
 
 
 /**
- * Add bounding box points to each frame of each expression,
- * and setup the adjacent triangles list for the Delaunay triangulation
+ * 1. Cut out the facial landmarks in the inner lips
+ * 2. Add bounding box points to each frame of each expression
+ * 3. Setup the adjacent triangles list for the Delaunay triangulation
  */
 function setupExpressions() {
-    // Step 1: Setup a bounding box on the first frame of every expression
+    // Step 1: Cut out facial landmarks in the inner lips from range 
+    for (const expression in FACE_EXPRESSIONS) {
+        for (let i = 0; i < FACE_EXPRESSIONS[expression].length; i++) {
+            FACE_EXPRESSIONS[expression][i] = cutOutInnerMouth(FACE_EXPRESSIONS[expression][i]);
+        }
+    }
+
+    // Step 2: Setup a bounding box on the first frame of every expression
     // and add it to all frames in that expression
     let NLandmarks = 0;
     for (const expression in FACE_EXPRESSIONS) {
@@ -63,7 +89,7 @@ function setupExpressions() {
             }
         }
     }
-    // Step 2: Setup adjacent triangles lookup
+    // Step 3: Setup adjacent triangles lookup
     for (let i = 0; i < NLandmarks+4; i++) {
         ADJACENT_TRIS.push([]);
     }

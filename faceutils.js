@@ -8,7 +8,7 @@ const vec2 = glMatrix.vec2;
 const MODEL_URL = './libs/models/';
 let landmarkModelsLoaded = false;
 
-
+// Delete landmarks 60 through 67
 /**
  * Compute the facial landmarks
  * @param {Image} img Handle to an image on which to compute facial landmarks
@@ -40,6 +40,7 @@ async function getFacialLandmarks(img) {
             Y = fullFaceDescriptions[f].landmarks.positions[i].y;
             points.push([X, Y]);
         }
+        points = cutOutInnerMouth(points);
         let bboxPoints = getBBoxPaddedPoints(points);
         for (let i = 0; i < bboxPoints.length; i++) {
             points.push(bboxPoints[i]);
