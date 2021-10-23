@@ -6,7 +6,6 @@
 const vec3 = glMatrix.vec3;
 const vec2 = glMatrix.vec2;
 const MODEL_URL = './libs/models/';
-const BBOX_PAD = 0.1;
 let landmarkModelsLoaded = false;
 
 
@@ -175,8 +174,6 @@ function getTri(X, tris, ti) {
         return Y;
     }
     let frames = FACE_EXPRESSIONS[expression];
-    let tris = FACE_EXPRESSION_TRIS[expression].tris;
-    let adjacentTris = FACE_EXPRESSION_TRIS[expression].adjacentTris;
     let idx = activation*(frames.length-1);
     let i1 = Math.floor(idx);
     let i2 = Math.ceil(idx);
@@ -200,19 +197,20 @@ function getTri(X, tris, ti) {
     let TIdx = [];
     let coords = [];
     let touched = []; // Keep track of the last vertex that checked this triangle
-    for (let i = 0; i < tris.length/3; i++) {
+    for (let i = 0; i < FACE_TRIS.length/3; i++) {
         touched.push(-1);
     }
     let foundLast = 0;
-    for (let i = 0; i < XModelNew.length; i++) {
+    // Do point location on all but the 4 bbox points
+    for (let i = 0; i < XModelNew.length - 4; i++) { 
         coords[i] = [1, 0, 0];
         TIdx.push(-1);
         // First check the adjacent triangles
         let k = 0;
-        while(k < adjacentTris[i].length && TIdx[i] == -1) {
-            let ti = adjacentTris[i][k];
+        while(k < ADJACENT_TRIS[i].length && TIdx[i] == -1) {
+            let ti = ADJACENT_TRIS[i][k];
             touched[ti] = i;
-            let abcd = getTri(frames[0], tris, ti);
+            let abcd = getTri(frames[0], FACE_TRIS, ti);
             abcd.push(XModelNew[i]);
             let coordsi = getBarycentricCoords.apply(null, abcd);
             if (coordsi.length > 0) {
@@ -227,10 +225,10 @@ function getTri(X, tris, ti) {
             // brute force (TODO: Could be improved with half-edge based
             // breadth first search)
             let ti = 0;
-            while(ti < tris.length/3 && TIdx[i] == -1) {
+            while(ti < FACE_TRIS.length/3 && TIdx[i] == -1) {
                 if (touched[ti] < i) {
                     touched[ti] = i;
-                    let abcd = getTri(frames[0], tris, ti);
+                    let abcd = getTri(frames[0], FACE_TRIS, ti);
                     abcd.push(XModelNew[i]);
                     let coordsi = getBarycentricCoords.apply(null, abcd);
                     if (coordsi.length > 0) {
@@ -242,15 +240,16 @@ function getTri(X, tris, ti) {
             }
         }
     }
-    // Step 4: Transfer the barycentric coordinates to the new face
+    // Step 4: Transfer the barycentric coordinates of all but the last 4
+    // bbox points to the new face
     let YNew = [];
-    for (let i = 0; i < XModelNew.length; i++) {
+    for (let i = 0; i < XModelNew.length-4; i++) {
         let ti = TIdx[i];
         let y = vec2.create();
         if (ti > -1) {
-            let a = Y[tris[ti*3]];
-            let b = Y[tris[ti*3+1]];
-            let c = Y[tris[ti*3+2]];
+            let a = Y[FACE_TRIS[ti*3]];
+            let b = Y[FACE_TRIS[ti*3+1]];
+            let c = Y[FACE_TRIS[ti*3+2]];
             vec2.scaleAndAdd(y, y, a, coords[i][0]);
             vec2.scaleAndAdd(y, y, b, coords[i][1]);
             vec2.scaleAndAdd(y, y, c, coords[i][2]);
@@ -264,6 +263,7 @@ function getTri(X, tris, ti) {
     for (let i = 0; i < 4; i++) {
         YNew.push(Y[Y.length-4+i]);
     }
+    
     let toc = (new Date()).getTime();
     //console.log("Elapsed time point location: ", toc-tic, ", foundLast = ", foundLast, "of", XModelNew.length);
     return YNew;

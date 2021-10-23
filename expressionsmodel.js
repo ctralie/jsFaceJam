@@ -1,3 +1,5 @@
+const BBOX_PAD = 0.1;
+let N_LANDMARKS = 68;
 const EYEBROW_START = 17;
 const EYEBROW_END = 26;
 
@@ -38,39 +40,39 @@ const EYEBROW_END = 26;
 }
 
 
+const FACE_TRIS = [[71, 8, 70], [70, 1, 68], [2, 1, 70], [19, 69, 68], [16, 71, 69], [16, 15, 71], [19, 20, 69], [1, 0, 68], [20, 23, 69], [23, 20, 21], [13, 12, 71], [36, 0, 1], [18, 19, 68], [59, 49, 60], [3, 2, 70], [4, 3, 70], [6, 59, 60], [26, 16, 69], [15, 14, 71], [14, 13, 71], [37, 20, 19], [18, 37, 19], [37, 18, 36], [48, 31, 2], [3, 48, 2], [49, 48, 60], [48, 49, 31], [48, 3, 4], [31, 41, 2], [41, 31, 40], [41, 1, 2], [41, 36, 1], [41, 37, 36], [36, 17, 0], [18, 17, 36], [0, 17, 68], [17, 18, 68], [14, 64, 13], [5, 6, 60], [48, 5, 60], [5, 48, 4], [5, 4, 70], [6, 5, 70], [25, 26, 69], [46, 14, 15], [39, 38, 40], [38, 41, 40], [41, 38, 37], [38, 39, 21], [20, 38, 21], [37, 38, 20], [9, 56, 8], [9, 8, 71], [10, 9, 71], [56, 57, 8], [57, 58, 8], [6, 7, 59], [7, 58, 59], [58, 7, 8], [8, 7, 70], [7, 6, 70], [13, 54, 12], [64, 54, 13], [30, 32, 33], [32, 30, 31], [23, 24, 69], [24, 25, 69], [35, 64, 14], [46, 35, 14], [35, 46, 47], [25, 44, 26], [24, 44, 25], [44, 24, 23], [39, 27, 21], [28, 27, 39], [54, 11, 12], [11, 54, 10], [12, 11, 71], [11, 10, 71], [55, 54, 64], [54, 55, 10], [9, 55, 56], [55, 9, 10], [57, 62, 58], [29, 35, 47], [35, 29, 30], [29, 39, 40], [29, 28, 39], [31, 29, 40], [30, 29, 31], [26, 45, 16], [44, 45, 26], [45, 44, 46], [16, 45, 15], [45, 46, 15], [43, 44, 23], [46, 43, 47], [44, 43, 46], [42, 27, 28], [42, 29, 47], [29, 42, 28], [43, 42, 47], [53, 55, 64], [35, 53, 64], [53, 52, 65], [52, 53, 35], [52, 34, 33], [34, 52, 35], [34, 30, 33], [34, 35, 30], [62, 61, 58], [61, 49, 59], [58, 61, 59], [22, 43, 23], [22, 42, 43], [42, 22, 27], [22, 23, 21], [27, 22, 21], [63, 53, 65], [53, 63, 55], [55, 63, 56], [63, 57, 56], [63, 62, 57], [49, 50, 31], [50, 32, 31], [32, 50, 33], [51, 52, 33], [50, 51, 33], [67, 61, 62], [67, 51, 50], [61, 67, 49], [67, 50, 49], [51, 66, 52], [52, 66, 65], [66, 67, 62], [67, 66, 51], [66, 63, 65], [63, 66, 62]];
+let ADJACENT_TRIS = [];
 
-const FACE_EXPRESSION_TRIS = {};
+
 /**
- * Setup triangulations for all expressions based on the first
- * frame of each expression.  These triangulations should include
- * points on a bounding box around the face to give the extreme
- * points room to move
+ * Add bounding box points to each frame of each expression,
+ * and setup the adjacent triangles list for the Delaunay triangulation
  */
 function setupExpressions() {
+    // Step 1: Setup a bounding box on the first frame of every expression
+    // and add it to all frames in that expression
+    let NLandmarks = 0;
     for (const expression in FACE_EXPRESSIONS) {
-        const X2D = FACE_EXPRESSIONS[expression][0]; // First frame of this expression
-        // Unravel X
-        let X = new Float32Array(X2D.length*2);
-        for (let i = 0; i < X2D.length; i++) {
-            X[i*2] = X2D[i][0];
-            X[i*2+1] = X2D[i][1];
-        }
-        // Perform delaunay triangulation
-        const delaunay = new Delaunator(X);
-        const tris = delaunay._triangles;
-        // Create quick lookup structure for adjacent triangles
-        const adjacentTris = [];
-        for (let i = 0; i < X2D.length; i++) {
-            adjacentTris.push([]);
-        }
-        for (let ti = 0; ti < tris.length/3; ti++) {
-            for (let k = 0; k < 3; k++) {
-                adjacentTris[tris[ti*3+k]].push(ti);
+        let X = FACE_EXPRESSIONS[expression][0]; // First frame of this expression
+        let bbox = getBBoxPaddedPoints(FACE_EXPRESSIONS[expression][0]);
+        for (let i = 0; i < FACE_EXPRESSIONS[expression].length; i++) {
+            for (let k = 0; k < bbox.length; k++) {
+                FACE_EXPRESSIONS[expression][i].push(bbox[i]);
+            }
+            if (i == 0) {
+                NLandmarks = FACE_EXPRESSIONS[expression][0].length;
             }
         }
-        FACE_EXPRESSION_TRIS[expression] = {"tris":tris, "adjacentTris":adjacentTris};
     }
-
+    // Step 2: Setup adjacent triangles lookup
+    for (let i = 0; i < NLandmarks; i++) {
+        ADJACENT_TRIS.push([]);
+    }
+    for (let ti = 0; ti < FACE_TRIS.length/3; ti++) {
+        for (let k = 0; k < 3; k++) {
+            ADJACENT_TRIS[FACE_TRIS[ti*3+k]].push(ti);
+        }
+    }
 }
 
 // Center and principal components for facial landmarks, excluding the 8 bounding box points

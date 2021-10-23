@@ -342,10 +342,14 @@ class FaceCanvas {
     }
 
     /**
-     * Perform a Delaunay triangulation on the points and copy it
-     * over to the GPU as an index buffer
+     * Create a triangulation between all of the points and copy it
+     * over to the GPU as an index buffer.  This method assumes that 
+     * the bounding boxes of the faces are disjoint and that they are all
+     * contained within the full image box
+     * 
      * @param {2d array} points An array of points, each of which is a list [x, y]
-     * It is assumed that the last point has coordinates [width, width]
+     * It is assumed that the last 4 coordinates are the bounding rectangle of
+     * the full image
      */
     updateIndexBuffer(points) {
         let that = this;
@@ -355,14 +359,53 @@ class FaceCanvas {
         else {
             const gl = this.gl;
             const indexBuffer = this.shader.indexBuffer;
-            // Unravel points
-            let X = new Float32Array(points.length*2);
-            for (let i = 0; i < points.length; i++) {
-                X[i*2] = points[i][0];
-                X[i*2+1] = points[i][1];
+
+            // Step 1: Use a Delaunay triangulation to get the triangles
+            // that connect bounding boxes of all of the faces to each
+            // other and to the last 4 image bounding box coordinates
+            let numFaces = (points.length-4)/(N_LANDMARKS+4);
+            let X = new Float32Array(2*4*(numFaces+1));
+            // Add bounding box points
+            let offset = N_LANDMARKS;
+            for (let f = 0; f < numFaces; i++) {
+                for (let k = 0; k < 4; k++) {
+                    let idx = f*4+k;
+                    X[idx*2] = points[offset+k][0];
+                    X[idx*2+1] = points[offset+k][1];
+                }
+                offset += N_LANDMARKS+4;
+            }
+            offset = points.length-4;
+            // Add the last 4 points for the bounding box for the full image
+            for (let k = 0; k < 4; k++) {
+                let idx = numFaces*4+k;
+                X[idx*2] = points[offset+k][0];
+                X[idx*2+1] = points[offset+k][1];
             }
             const delaunay = new Delaunator(X);
-            const tris = delaunay._triangles;
+            let tris = [];
+            let ctris = delaunay._triangles; // connecting triangles
+            // Keep only the triangles which connect different boxes
+            // to each other
+            for (let t = 0; t < ctris.length; t++) {
+                // At least two of the points on the triangle
+                // must reside on a different box
+                let allSame = true;
+                for (let k = 0; k < 3; k++) {
+
+                }
+                if (!allSame) {
+                    // Convert indices to offset in points list and
+                    // add them to the overall triangulation
+                }
+            }
+
+
+            // Step 2: Apply the same predetermined triangulation the facial
+            // landmarks within each bounding box
+
+            // Unravel points
+
             gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
             gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(tris), gl.STATIC_DRAW);
             indexBuffer.itemSize = 1;
