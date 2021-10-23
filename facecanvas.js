@@ -43,8 +43,8 @@ function unwrapFacePoints(faces, width, height) {
     }
     points.push([0,0]);
     points.push([width,0]);
-    points.push([0,height]);
     points.push([width,height]);
+    points.push([0,height]);
     return points;
 }
 
@@ -364,14 +364,13 @@ class FaceCanvas {
             // that connect bounding boxes of all of the faces to each
             // other and to the last 4 image bounding box coordinates
             let numFaces = (points.length-4)/(N_LANDMARKS+4);
-            let X = new Float32Array(2*4*(numFaces+1));
+            let X = [];
             // Add bounding box points
             let offset = N_LANDMARKS;
-            for (let f = 0; f < numFaces; i++) {
+            for (let f = 0; f < numFaces; f++) {
                 for (let k = 0; k < 4; k++) {
                     let idx = f*4+k;
-                    X[idx*2] = points[offset+k][0];
-                    X[idx*2+1] = points[offset+k][1];
+                    X.push([points[offset+k][0], points[offset+k][1]]);
                 }
                 offset += N_LANDMARKS+4;
             }
@@ -379,33 +378,50 @@ class FaceCanvas {
             // Add the last 4 points for the bounding box for the full image
             for (let k = 0; k < 4; k++) {
                 let idx = numFaces*4+k;
-                X[idx*2] = points[offset+k][0];
-                X[idx*2+1] = points[offset+k][1];
+                X.push([points[offset+k][0], points[offset+k][1]]);
             }
-            const delaunay = new Delaunator(X);
+            let edges = [];
+            // Add the edges of the bounding boxes as constraints
+            for (let f = 0; f <= numFaces; f++) {
+                for (let k = 0; k < 4; k++) {
+                    edges.push([f*4+k, f*4+(k+1)%4]);
+                }
+            }
+            let ctris = cdt2d(X, edges, {"interior":true}); // Connecting triangles
             let tris = [];
-            let ctris = delaunay._triangles; // connecting triangles
-            // Keep only the triangles which connect different boxes
-            // to each other
+            // Remove triangles that intersect with a bounding box
             for (let t = 0; t < ctris.length; t++) {
                 // At least two of the points on the triangle
                 // must reside on a different box
-                let allSame = true;
-                for (let k = 0; k < 3; k++) {
-
-                }
+                let allSame = Math.floor(ctris[t][0]/4) == Math.floor(ctris[t][1]/4);
+                allSame = allSame && (Math.floor(ctris[t][1]/4) == Math.floor(ctris[t][2]/4));
                 if (!allSame) {
                     // Convert indices to offset in points list and
                     // add them to the overall triangulation
+                    for (let k = 0; k < 3; k++) {
+                        let v = ctris[t][k]%4;  // Which vertex this is on the box
+                        let f = (ctris[t][k]-v)/4; // Which box it's in
+                        let vidx = f*(N_LANDMARKS+4) + v;
+                        if (f < numFaces) {
+                            vidx += N_LANDMARKS;
+                        }
+                        tris.push(vidx);
+                    }
                 }
             }
-
-
-            // Step 2: Apply the same predetermined triangulation the facial
-            // landmarks within each bounding box
+            
+            // Step 2: Add triangles for every face
+            offset = 0;
+            for (let f = 0; f < numFaces; f++) {
+                for (let t = 0; t < FACE_TRIS.length/3; t++) {
+                    for (let k = 0; k < 3; k++) {
+                        tris.push(FACE_TRIS[t*3+k] + offset);
+                    }
+                }
+                offset += N_LANDMARKS + 4;
+            }
 
             // Unravel points
-
             gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
             gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(tris), gl.STATIC_DRAW);
             indexBuffer.itemSize = 1;
