@@ -3,95 +3,145 @@
     <script src="libs/jquery-3.5.1.min.js"></script>
     <script src="libs/face-api.js"></script>
     <script src="libs/face-api.min.js"></script>
-    <script src="PCA/numeric-1.2.6.min.js"></script>
-    <script src="https://unpkg.com/delaunator@4.0.1/delaunator.min.js"></script>
+    <script src="libs/numeric-1.2.6.min.js"></script>
+    <script src="libs/gl-matrix-min.js"></script>
+    <script src="libs/cdt2d.js"></script>
+    
+    <script src="jsanov/libs/fft.min.js"></script>
+    <script src="jsanov/libs/jquery.ajax.arraybuffer.min.js"></script>
+    <script src="jsanov/libs/lame.min.js"></script>
+    <script src="jsanov/wav.js"></script>
+    <script src="jsanov/features.js"></script>
+    <script src="jsanov/audio.js"></script>
+
+    <script src="matrixutils.js"></script>
     <script src="shaders.js"></script>
     <script src="texture.js"></script>
     <script src="expressionsmodel.js"></script>
     <script src="faceutils.js"></script>
     <script src="facecanvas.js"></script>
     <script src="debugcanvas.js"></script>
-    <link rel="stylesheet" href="styles.css">
+    <script src="progressbar.js"></script>
+    <link rel="stylesheet" href="assets/css/main.css" />
     <meta charset="utf-8" />
 </head>
 <body>
 
-    <div class="tabmenu">
-        <button type="button" onclick="viewDebug()" id="debugbutton" class="active">Debug Canvas</button>
-        <button type="button" onclick="viewFace()" id="facebutton" class="">Face Canvas</button>
+
+    <table>
+        <tr>
+            <td>
+                <div id = "spotifyDiv"></div>
+            </td>
+            <td><b>Example Tunes 🎵</b>
+                <div class = "select-wrapper">
+                    <select id="ExampleTunes" name = "ExampleTunes">
+                        <option disabled selected value> -- select an option -- </option>
+                        <option value = "ExampleTunes/rickroll.mp3">Rick Roll</option>
+                        <option value = "ExampleTunes/numanuma.mp3">Numa Numa</option>
+                        <option value = "ExampleTunes/barry.mp3">Barry White</option>
+                        <option value = "ExampleTunes/beyonce.mp3">Beyoncé</option>
+                        <option value = "ExampleTunes/erykah.mp3">Erykah Badu</option>
+                        <option value = "ExampleTunes/birthday.mp3">Birthday</option>
+                    </select>
+                </div>
+            </td>
+            <td><b>Upload Tune:</b> <input type = "file" id = "tuneInput"></td>
+            <td>
+                <p><b>Record</b></p>
+                <button id="start" style="width:50px; padding:0" onclick="startRecording()"><h1>⏺️</h1></button>
+                <button id="stop" style="width:50px; padding:0" onclick="stopRecording()"><h1>⏹️</h1></button>
+            </td>
+        </tr>
+        <tr>
+        <td colspan = "2"><b>Example Images 🎨</b>
+            <div class = "select-wrapper">
+                <select id="ExamplePictures" name = "ExamplePictures">
+                    <option disabled selected value> -- select an option -- </option>
+                    <option value = "ExamplePhotos/hannibal.jpg">Hannibal Buress</option>
+                    <option value = "ExamplePhotos/taylor.png">Taylor Swift</option>
+                    <option value = "ExamplePhotos/Zach.png">Zach Galifanakis</option>
+                    <option value = "ExamplePhotos/tiffany.png">Tiffany Haddish</option>
+                    <option value = "ExamplePhotos/Eric.jpg">Eric Andre</option>
+                    <option value = "ExamplePhotos/Amy.jpg">Amy Schumer</option>
+                    <option value = "ExamplePhotos/TheRock.png">Dwayne Johnson</option>
+                    <option value = "ExamplePhotos/Sarah_Silverman_DNC_July_2016.jpg">Sarah Silverman</option>
+                    <option value = "ExamplePhotos/Parker.png">Parker Fairchild</option>
+                    <option value = "ExamplePhotos/Cristiano.jpg">Cristiano D'Angelo</option>
+                    <option value = "ExamplePhotos/james.png">James Tralie</option>
+                    <option value = "ExamplePhotos/profs.png">Profs</option>
+                    <option value = "ExamplePhotos/birthday.png">Birthday</option>
+                </select>
+            </div>
+        </td>
+        <td><b>Upload Image:</b> <input type = "file" id = "imageInput"></td>
+        </tr>
+
+        <tr><td colspan = "4">
+            <h3><p id = "pagestatus">😱Welcome to FaceJam!🙀  Please choose an image and a tune 🎵 to start</p></h3>
+        </td></tr>
+        <tr>
+            <td colspan="4">
+                <audio controls id="audioPlayer" style="width: 80%;">
+                  Your browser does not support the audio element.
+                  </audio> 
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <input type="range" min="0" max="100" value="40" class="slider" id="eyebrowEnergySlider">
+                <label for="eyebrowEnergySlider">Eyebrow Energy</label>
+            </td>
+            <td>
+                <input type="range" min="0" max="100" value="20" class="slider" id="faceEnergySlider">
+                <label for="faceEnergySlider">Face Energy</label>
+            </td>
+            <td>
+                <input type="range" min="0" max="100" value="20" class="slider" id="smoothnessSlider">
+                <label for="smoothnessSlider">Eyebrow Beat Smoothness</label>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <button id = "download" onclick="downloadVideo()">Download Video</button>
+                <div id = "downloadLink"></div>
+            </td>
+            <td>
+                <input type="range" min="64" max="512" class="slider" id="resolutionSlider">
+                <label for="resolutionSlider" id="resolutionSliderLabel"></label>
+            </td>
+            <td>
+                <input type="range" min="2" max="30" class="slider" id="fpsSlider">
+                <label for="fpsSlider" id="fpsSliderLabel"></label>
+            </td>
+        </tr>
+        <tr>
+            <td colspan="4">
+                <canvas id = "FaceCanvas" style="border:1px solid #000000;">
+                </canvas>
+            </td>
+        </tr>
+    </table>
+
+
+    <script src="jsanov/libs/base64-arraybuffer.js"></script>
+    <script src="jsanov/libs/randomstring.js"></script>
+    <script src="jsanov/spotify.js"></script>
+    <script src="main.js"></script>
+
+
+<!-- Footer -->
+<footer id="footer">
+    <div class="inner">
+        <section>
+            
+        </section>
+        <ul class="copyright">
+            <li>&copy; <a href = "http://www.ctralie.com">Christopher J. Tralie</a>, Parker Fairchild. All rights reserved</li>
+            <li>Design: <a href="http://html5up.net">HTML5 UP</a>.</li> 
+        </ul>
     </div>
-
-    <canvas id = "DebugCanvas" width = "800" height = "800" style="border:1px solid #000000;">
-    </canvas>
-
-    <canvas id = "FaceCanvas" width = "800" height = "800" style="border:1px solid #000000;">
-    </canvas>
-
-    <div id="imgdiv">
-        <img src = "hannibal.jpg" id="faceImg">
-    </div>
-
-
-
-<script>
-    let debugCanvas = new DebugCanvas();
-    let activeCanvas = debugCanvas;
-    let faceCanvas = new FaceCanvas(debugCanvas);
-    
-
-    // Code to toggle back and forth between canvases
-    let debugbutton = document.getElementById("debugbutton");
-    let facebutton = document.getElementById("facebutton");
-    function viewDebug() {
-        activeCanvas = debugCanvas;
-        debugbutton.className = "active";
-        debugCanvas.canvas.style.display = "block";
-        debugCanvas.setActive();
-        facebutton.className = "";
-        faceCanvas.canvas.style.display = "none";
-        faceCanvas.setInactive();
-    }
-    function viewFace() {
-        activeCanvas = faceCanvas;
-        debugbutton.className = "";
-        debugCanvas.canvas.style.display = "none";
-        debugCanvas.setInactive();
-        facebutton.className = "active";
-        faceCanvas.canvas.style.display = "block";
-        faceCanvas.setActive();
-    }
-    viewDebug(); // Active canvas is debug canvas initially
-
-
-    // Code to initialize delaunay triangulation, which is called
-    // when facial landmarks have been initialized
-    function updateDelaunay(img) {
-        faceCanvas.animating = true;
-        debugCanvas.setPoints(points);
-        requestAnimationFrame(activeCanvas.repaint.bind(activeCanvas));
-    }
-
-    // Load image that goes to texture
-    const image = document.getElementById("faceImg");
-    image.onload = function() {
-        let texture = loadTexture(faceCanvas.gl, image);
-        let W = image.width;
-        let H = image.height;
-        faceCanvas.updateTexture(texture);
-        debugCanvas.img = image;
-        document.getElementById("imgdiv").style.display = "none";
-        requestAnimationFrame(activeCanvas.repaint.bind(activeCanvas));
-        // Initialize facial landmarks
-        getFacialLandmarks(image).then(points => {
-            faceCanvas.animating = true;
-            faceCanvas.setPoints(points, W, H);
-            requestAnimationFrame(activeCanvas.repaint.bind(activeCanvas));
-        }); 
-    }
-
-
-
-</script>
+</footer>
 
 </body>
 </html>
